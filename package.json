@@ -1,0 +1,40 @@
+{
+    "name": "citeease-chrome-extension",
+    "version": "1.0.0",
+    "main": "popup.js",
+    "scripts": {
+        "build": "webpack",
+        "start": "webpack serve --open",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "chrome-extension",
+        "citation",
+        "reference",
+        "references",
+        "bibliography",
+        "doi",
+        "isbn",
+        "pmid",
+        "pmcid",
+        "url",
+        "citation-generator",
+        "bibliography-generator",
+        "academic",
+        "research",
+        "csl",
+        "citation-style-language"
+    ],
+    "author": "ganyemedelabs",
+    "license": "MIT",
+    "description": "",
+    "devDependencies": {
+        "copy-webpack-plugin": "^12.0.2",
+        "webpack": "^5.96.1",
+        "webpack-cli": "^5.1.4",
+        "webpack-dev-server": "^5.1.0"
+    },
+    "dependencies": {
+        "citeproc": "^2.4.63"
+    }
+}

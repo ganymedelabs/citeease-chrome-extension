@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>CiteEase</title>
+        <meta name="description" content="" />
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+
+    <body>
+        <main>
+            <h4>Reference list entry</h4>
+            <p id="reference"></p>
+
+            <hr />
+
+            <h4>In-text citation</h4>
+            <p id="intext"></p>
+
+            <hr />
+
+            <form>
+                <div class="select-wrapper">
+                    <label for="style-select">Style</label>
+                    <select name="style-select" id="style-select"></select>
+                </div>
+
+                <div class="select-wrapper">
+                    <label for="locale-select">Locale</label>
+                    <select name="locale-select" id="locale-select"></select>
+                </div>
+            </form>
+        </main>
+
+        <script src="popup.bundle.js"></script>
+    </body>
+</html>
