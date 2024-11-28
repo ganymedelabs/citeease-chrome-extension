@@ -7,7 +7,7 @@ function addCiteeaseButtons() {
         URL: /^(https?:\/\/)[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+$/,
         PMCID: /^PMC\d+$/,
         PMID: /^\d{7,10}$/,
-        ISBN: /^(97[89])\d{9}(\d|X)$/,
+        ISBN: /^(97[89])(-?\d+){4}(-?\d|X)$/,
     };
 
     const elements = document.querySelectorAll("body *");

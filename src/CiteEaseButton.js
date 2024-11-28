@@ -1,6 +1,28 @@
 const { getURL, load } = require("./utils");
 const CSLJsonParser = require("./CSLJsonParser");
 
+const referenceStyles = `
+    p {
+        margin: 0;
+    }
+
+    .csl-entry:has(.csl-left-margin) {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .csl-entry > .csl-left-margin {
+        min-width: fit-content;
+    }
+`;
+
+const intextStyles = `
+    p {
+        margin: 0;
+    }
+`;
+
 async function getCitation(type, value) {
     const parser = new CSLJsonParser();
 
@@ -79,19 +101,33 @@ class CiteEaseButton extends HTMLElement {
             titleSlot.setAttribute("slot", "title");
             titleSlot.textContent = `${identifierType}: ${identifierValue}`;
 
-            const referenceSlot = document.createElement("p");
+            const referenceSlot = document.createElement("div");
             referenceSlot.setAttribute("slot", "reference");
-            referenceSlot.onclick = (event) => navigator.clipboard.writeText(event.target.textContent);
+
+            const referenceStyleElement = document.createElement("style");
+            referenceStyleElement.textContent = referenceStyles;
+            const referenceContent = document.createElement("p");
+            referenceSlot.onclick = () => navigator.clipboard.writeText(referenceContent.textContent.trim());
             // TODO: Add feedback to the copying function
 
-            const intextSlot = document.createElement("p");
+            referenceSlot.appendChild(referenceStyleElement);
+            referenceSlot.appendChild(referenceContent);
+
+            const intextSlot = document.createElement("div");
             intextSlot.setAttribute("slot", "intext");
-            intextSlot.onclick = (event) => navigator.clipboard.writeText(event.target.textContent);
+
+            const intextStyleElement = document.createElement("style");
+            intextStyleElement.textContent = intextStyles;
+            const intextContent = document.createElement("p");
+            intextSlot.onclick = () => navigator.clipboard.writeText(intextContent.textContent.trim());
             // TODO: Add feedback to the copying function
+
+            intextSlot.appendChild(intextStyleElement);
+            intextSlot.appendChild(intextContent);
 
             getCitation(identifierType, identifierValue).then(([reference, intext]) => {
-                referenceSlot.innerHTML = reference;
-                intextSlot.innerHTML = intext;
+                referenceContent.innerHTML = reference;
+                intextContent.innerHTML = intext;
             });
 
             dialog.appendChild(titleSlot);

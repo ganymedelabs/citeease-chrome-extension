@@ -115,7 +115,7 @@ class CSLJsonParser {
                 publisher: edition?.publisher?.[0],
                 "publisher-place": edition?.publish_place?.[0],
                 ISBN: edition?.isbn?.[0] || isbn,
-                issued: publishDate ? this.createDateObject(publishDate) : undefined,
+                issued: publishDate ? this.#createDateObject(publishDate) : undefined,
                 accessed: this.#createDateObject(new Date()),
             };
 
