@@ -1,11 +1,43 @@
 const { getURL, load } = require("./utils");
 const CSLJsonParser = require("./CSLJsonParser");
 
-const referenceStyles = `
+const citationStyles = `
     p {
         margin: 0;
+        border-radius: 5px;
     }
 
+    .loading, .error {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+            "Open Sans", "Helvetica Neue", sans-serif;
+    }
+
+    .loading {
+        display: inline-block;
+        width: 100%;
+        height: 1em;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    .error {
+        color: white;
+        background: #e04b4b;
+        padding-inline: 5px;
+    }
+
+    @keyframes pulse {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+`;
+
+const referenceStyles = `
     .csl-entry:has(.csl-left-margin) {
         display: flex;
         align-items: flex-start;
@@ -17,11 +49,7 @@ const referenceStyles = `
     }
 `;
 
-const intextStyles = `
-    p {
-        margin: 0;
-    }
-`;
+const intextStyles = "";
 
 async function getCitation(type, value) {
     const parser = new CSLJsonParser();
@@ -50,20 +78,45 @@ async function getCitation(type, value) {
     return await parser.toBibliography({ style, locale });
 }
 
-function updateOpenDialog() {
-    const openDialog = document.querySelector("citeease-dialog");
-    if (!openDialog) return;
+async function updateDialog(referenceContent, intextContent) {
+    const citeeaseDialog = document.querySelector("citeease-dialog");
+    const shadowRoot = citeeaseDialog.shadowRoot;
 
-    const referenceElement = openDialog.querySelector(".reference");
-    const intextElement = openDialog.querySelector(".intext");
-    const identifierType = openDialog.getAttribute("data-type");
-    const identifierValue = openDialog.getAttribute("data-value");
+    if (!shadowRoot) return;
 
-    if (referenceElement && intextElement && identifierType && identifierValue) {
-        getCitation(identifierType, identifierValue).then(([reference, intext]) => {
-            referenceElement.innerHTML = reference;
-            intextElement.innerHTML = intext;
-        });
+    const localeSelect = shadowRoot.getElementById("locale-select");
+    const styleSelect = shadowRoot.getElementById("style-select");
+
+    const locale = localeSelect.value;
+    const style = styleSelect.value;
+
+    const identifierType = citeeaseDialog.getAttribute("data-type");
+    const identifierValue = citeeaseDialog.getAttribute("data-value");
+
+    referenceContent.textContent = "";
+    intextContent.textContent = "";
+
+    referenceContent.classList.add("loading");
+    intextContent.classList.add("loading");
+
+    try {
+        const [reference, intext] = await getCitation(identifierType, identifierValue, style, locale);
+
+        if (reference) {
+            referenceContent.innerHTML = reference;
+            intextContent.innerHTML = intext;
+            referenceContent.classList.remove("error", "loading");
+            intextContent.classList.remove("error", "loading");
+        } else {
+            throw new Error("Failed to retrieve citation data");
+        }
+    } catch (error) {
+        referenceContent.innerHTML = "Failed to retrieve source data";
+        intextContent.innerHTML = "Failed to format in-text citation";
+        referenceContent.classList.remove("loading");
+        intextContent.classList.remove("loading");
+        referenceContent.classList.add("error");
+        intextContent.classList.add("error");
     }
 }
 
@@ -105,10 +158,8 @@ class CiteEaseButton extends HTMLElement {
             referenceSlot.setAttribute("slot", "reference");
 
             const referenceStyleElement = document.createElement("style");
-            referenceStyleElement.textContent = referenceStyles;
+            referenceStyleElement.textContent = `${citationStyles}\n${referenceStyles}`;
             const referenceContent = document.createElement("p");
-            referenceSlot.onclick = () => navigator.clipboard.writeText(referenceContent.textContent.trim());
-            // TODO: Add feedback to the copying function
 
             referenceSlot.appendChild(referenceStyleElement);
             referenceSlot.appendChild(referenceContent);
@@ -117,17 +168,34 @@ class CiteEaseButton extends HTMLElement {
             intextSlot.setAttribute("slot", "intext");
 
             const intextStyleElement = document.createElement("style");
-            intextStyleElement.textContent = intextStyles;
+            intextStyleElement.textContent = `${citationStyles}\n${intextStyles}`;
             const intextContent = document.createElement("p");
-            intextSlot.onclick = () => navigator.clipboard.writeText(intextContent.textContent.trim());
-            // TODO: Add feedback to the copying function
 
             intextSlot.appendChild(intextStyleElement);
             intextSlot.appendChild(intextContent);
 
+            referenceContent.classList.remove("error");
+            intextContent.classList.remove("error");
+            referenceContent.classList.add("loading");
+            intextContent.classList.add("loading");
+
             getCitation(identifierType, identifierValue).then(([reference, intext]) => {
-                referenceContent.innerHTML = reference;
-                intextContent.innerHTML = intext;
+                if (reference) {
+                    referenceContent.innerHTML = reference;
+                    intextContent.innerHTML = intext;
+                    referenceContent.classList.remove("error", "loading");
+                    intextContent.classList.remove("error", "loading");
+                    referenceSlot.onclick = () => navigator.clipboard.writeText(referenceContent.textContent.trim());
+                    intextSlot.onclick = () => navigator.clipboard.writeText(intextContent.textContent.trim());
+                    // TODO: Add feedback to the copying function
+                } else {
+                    referenceContent.innerHTML = "Failed to retrieve source data";
+                    intextContent.innerHTML = "Failed to format in-text citation";
+                    referenceContent.classList.remove("loading");
+                    intextContent.classList.remove("loading");
+                    referenceContent.classList.add("error");
+                    intextContent.classList.add("error");
+                }
             });
 
             dialog.appendChild(titleSlot);
@@ -147,8 +215,8 @@ class CiteEaseButton extends HTMLElement {
                 const localeSelect = shadowRoot.getElementById("locale-select");
                 const styleSelect = shadowRoot.getElementById("style-select");
 
-                localeSelect.addEventListener("change", updateOpenDialog);
-                styleSelect.addEventListener("change", updateOpenDialog);
+                localeSelect.addEventListener("change", () => updateDialog(referenceContent, intextContent));
+                styleSelect.addEventListener("change", () => updateDialog(referenceContent, intextContent));
             }
 
             const closeDialog = (event) => {

@@ -28,22 +28,31 @@ function addCiteeaseButtons() {
         ];
         if (new RegExp(excludedTags.join("|"), "i").test(element.nodeName)) return;
 
-        const text = element.textContent.trim();
+        let text = element.textContent.trim();
+        let modified = false;
+
         for (const [type, regex] of Object.entries(identifierPatterns)) {
-            if (regex.test(text)) {
-                element.style.background = "#40c2c980";
-                element.style.paddingInline = "2px";
-                element.style.borderRadius = "3px";
-                element.style.display = "inline-flex";
-                element.style.alignItems = "center";
+            text = text.replace(regex, (match) => {
+                modified = true;
+                const wrapper = document.createElement("span");
+                wrapper.style.background = "#40c2c980";
+                wrapper.style.borderRadius = "3px";
+                wrapper.style.display = "inline-flex";
+                wrapper.style.alignItems = "center";
 
                 const button = document.createElement("citeease-button");
                 button.setAttribute("data-type", type);
-                button.setAttribute("data-value", text);
+                button.setAttribute("data-value", match);
 
-                element.appendChild(button);
-                break;
-            }
+                wrapper.innerHTML = match;
+                wrapper.appendChild(button);
+
+                return wrapper.outerHTML;
+            });
+        }
+
+        if (modified) {
+            element.innerHTML = text;
         }
     });
 }
