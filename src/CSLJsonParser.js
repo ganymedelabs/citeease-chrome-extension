@@ -1,5 +1,5 @@
 const Citeproc = require("citeproc");
-const { uid, getURL } = require("./utils");
+const { uid } = require("./utils");
 
 class CSLJsonParser {
     constructor(cslJson) {
@@ -61,8 +61,23 @@ class CSLJsonParser {
         return { "date-parts": [dateParts] };
     }
 
+    async #retryWithDelay(func, retries = 2, delay = 1000) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                return await func();
+            } catch (error) {
+                if (i < retries - 1) {
+                    console.warn(`Retrying... (${i + 1}/${retries})`);
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                } else {
+                    throw error;
+                }
+            }
+        }
+    }
+
     async fromDOI(doi) {
-        try {
+        return this.#retryWithDelay(async () => {
             const response = await fetch(`${this.#CORS_PROXY}https://api.crossref.org/works/${doi}`);
             const data = await response.json();
             const { message } = data;
@@ -88,13 +103,11 @@ class CSLJsonParser {
 
             this.cslJson.push(newCslJsonObject);
             return newCslJsonObject;
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 
     async fromISBN(isbn) {
-        try {
+        return this.#retryWithDelay(async () => {
             const response = await fetch(
                 `https://openlibrary.org/search.json?q=isbn:${isbn}&mode=everything&fields=*,editions`
             );
@@ -121,15 +134,13 @@ class CSLJsonParser {
 
             this.cslJson.push(newCslJsonObject);
             return newCslJsonObject;
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 
     async fromPMCID(pmcid) {
-        const pmcIdWithoutPrefix = pmcid.replace(/^PMC/, "");
+        return this.#retryWithDelay(async () => {
+            const pmcIdWithoutPrefix = pmcid.replace(/^PMC/, "");
 
-        try {
             const response = await fetch(
                 `${this.#CORS_PROXY}https://api.ncbi.nlm.nih.gov/lit/ctxp/v1/pmc/?format=csl&id=${pmcIdWithoutPrefix}`
             );
@@ -161,13 +172,11 @@ class CSLJsonParser {
             }
 
             return newCslJsonObject;
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 
     async fromPMID(pmid) {
-        try {
+        return this.#retryWithDelay(async () => {
             const response = await fetch(
                 `${this.#CORS_PROXY}https://api.ncbi.nlm.nih.gov/lit/ctxp/v1/pubmed/?format=csl&id=${pmid}`
             );
@@ -199,15 +208,13 @@ class CSLJsonParser {
             }
 
             return newCslJsonObject;
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 
     async fromHTML(html, options) {
-        const { prioritizeIdentifiers = [], url = undefined } = options;
+        return this.#retryWithDelay(async () => {
+            const { prioritizeIdentifiers = [], url = undefined } = options;
 
-        try {
             const parser = new DOMParser();
             const document = parser.parseFromString(String(html), "text/html");
 
@@ -224,14 +231,12 @@ class CSLJsonParser {
                 return element ? (attr ? element.getAttribute(attr) || "" : element.textContent || "") : "";
             };
 
-            const currentTabUrl = await getURL("currentTab");
-
             const getAvailableIdentifiers = () => {
                 let pmidMatch;
                 let pmcidMatch;
                 let doiMatch;
 
-                if (currentTabUrl.startsWith("https://pubmed.ncbi.nlm.nih.gov")) {
+                if (url.startsWith("https://pubmed.ncbi.nlm.nih.gov")) {
                     const keywords = extractContent('meta[name="keywords"]', "content");
 
                     pmidMatch = keywords.match(/pmid:\d+/);
@@ -281,29 +286,26 @@ class CSLJsonParser {
                 publisher: extractContent('meta[property="article:publisher"]', "content"),
                 accessed: this.#createDateObject(new Date()),
                 issued: this.#createDateObject(new Date(extractContent('meta[name="date"]', "content") || "")),
-                URL: url || extractContent('meta[property="og:url"]', "content") || currentTabUrl,
+                URL: extractContent('meta[property="og:url"]', "content") || url,
             };
 
             this.cslJson.push(newCslJsonObject);
             return newCslJsonObject;
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 
     async fromURL(url) {
-        try {
+        return this.#retryWithDelay(async () => {
             const response = await fetch(`${this.#CORS_PROXY}${url}`);
             const text = await response.text();
 
             const newCslJsonObject = await this.fromHTML(text, { url: url });
 
             return newCslJsonObject;
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 
+    // FIXME: The method still synchronous
     async toBibliography(options) {
         return new Promise((resolve) => {
             try {

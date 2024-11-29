@@ -9,25 +9,29 @@
     </head>
 
     <body>
-        <main>
-            <h4>Reference list entry</h4>
-            <p id="reference"></p>
+        <div class="dialog-header"><div id="title"></div></div>
 
-            <h4>In-text citation</h4>
-            <p id="intext"></p>
+        <div class="dialog-content">
+            <div class="citation-container">
+                <h4 class="label">Reference list entry</h4>
+                <p id="reference"></p>
+            </div>
+            <div class="citation-container">
+                <h4 class="label">In-text citation</h4>
+                <p id="intext"></p>
+            </div>
+        </div>
 
-            <form>
-                <div class="select-wrapper">
-                    <label for="style-select">Style</label>
-                    <select name="style-select" id="style-select"></select>
-                </div>
-
-                <div class="select-wrapper">
-                    <label for="locale-select">Locale</label>
-                    <select name="locale-select" id="locale-select"></select>
-                </div>
-            </form>
-        </main>
+        <div class="dialog-options">
+            <div class="select-container">
+                <label for="style-select">Style:</label>
+                <select id="style-select"></select>
+            </div>
+            <div class="select-container">
+                <label for="locale-select">Locale:</label>
+                <select id="locale-select"></select>
+            </div>
+        </div>
 
         <script src="popup.bundle.js"></script>
     </body>
