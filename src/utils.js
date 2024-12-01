@@ -58,4 +58,12 @@ async function load(key) {
     });
 }
 
-module.exports = { getURL, uid, save, load };
+function createElementFromHTML(htmlString) {
+    const template = document.createElement("template");
+    htmlString = htmlString.trim();
+    template.innerHTML = htmlString;
+
+    return template.content.firstChild;
+}
+
+module.exports = { getURL, uid, save, load, createElementFromHTML };

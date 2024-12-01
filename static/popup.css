@@ -164,3 +164,20 @@ body {
 .csl-entry > .csl-left-margin {
     min-width: fit-content;
 }
+
+/* Copied Feedback */
+
+.copied-feedback {
+    position: relative;
+    right: 10px;
+    opacity: 0;
+    color: #35c46e;
+    font-size: 12px;
+    transition: right 0.5s ease, opacity 0.5s ease;
+}
+
+.copied-feedback.show {
+    position: relative;
+    opacity: 1;
+    right: 0px;
+}

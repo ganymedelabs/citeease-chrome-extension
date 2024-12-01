@@ -34,8 +34,24 @@ async function updateDialog(html, currentTabURL) {
             intextElement.innerHTML = intext;
             referenceElement.classList.remove("error", "loading");
             intextElement.classList.remove("error", "loading");
-            referenceElement.onclick = () => navigator.clipboard.writeText(referenceElement.textContent.trim());
-            intextElement.onclick = () => navigator.clipboard.writeText(intextElement.textContent.trim());
+
+            referenceElement.onclick = () => {
+                navigator.clipboard.writeText(referenceElement.textContent.trim()).then(() => {
+                    const feedback = document.querySelector("#reference-feedback");
+                    feedback.textContent = "Copied!";
+                    feedback.classList.add("show");
+                    setTimeout(() => feedback.classList.remove("show"), 2000);
+                });
+            };
+
+            intextElement.onclick = () => {
+                navigator.clipboard.writeText(intextElement.textContent.trim()).then(() => {
+                    const feedback = document.querySelector("#intext-feedback");
+                    feedback.textContent = "Copied!";
+                    feedback.classList.add("show");
+                    setTimeout(() => feedback.classList.remove("show"), 2000);
+                });
+            };
         } else {
             throw new Error("Failed to retrieve citation data");
         }

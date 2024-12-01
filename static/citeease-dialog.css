@@ -65,7 +65,7 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000015, 0 2px 4px #00000015;
-    transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .close-button:hover {
@@ -96,6 +96,7 @@
 }
 
 .label {
+    position: relative;
     font-size: 12px;
     margin: 0;
     color: #364f6b;
@@ -141,7 +142,7 @@
     border-radius: 5px;
     background: #f9f9f9;
     color: #333;
-    transition: background-color 0.2s ease-out;
+    transition: background-color 0.2s ease;
 }
 
 #style-select:hover,
@@ -152,4 +153,21 @@
 #style-select:focus,
 #locale-select:focus {
     background: #f9f9f9;
+}
+
+/* Copied Feedback */
+
+.copied-feedback {
+    position: relative;
+    right: 10px;
+    opacity: 0;
+    color: #35c46e;
+    font-size: 12px;
+    transition: right 0.5s ease, opacity 0.5s ease;
+}
+
+.copied-feedback.show {
+    position: relative;
+    opacity: 1;
+    right: 0px;
 }

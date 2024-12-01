@@ -1,4 +1,4 @@
-const { getURL, load, save } = require("./utils");
+const { getURL, load, save, createElementFromHTML } = require("./utils");
 const CSLJsonParser = require("./CSLJsonParser");
 
 const citationStyles = `
@@ -64,98 +64,63 @@ class CiteEaseDialog extends HTMLElement {
         super();
         this.attachShadow({ mode: "open" });
 
-        const link = document.createElement("link");
-        link.setAttribute("rel", "stylesheet");
+        const dialogTemplate = `
+            <link rel="stylesheet" href="">
+            <div class="dialog-header">
+                <slot name="title"></slot>
+                <button class="close-button">×</button>
+            </div>
+            <div class="dialog-content">
+                <div class="citation-container">
+                    <h4 class="label">Reference list entry <span class="copied-feedback" id="reference-feedback"></span></h4>
+                    <slot name="reference"></slot>
+                </div>
+                <div class="citation-container">
+                    <h4 class="label">In-text citation <span class="copied-feedback" id="intext-feedback"></span></h4>
+                    <slot name="intext"></slot>
+                </div>
+            </div>
+            <div class="dialog-options">
+                <div class="select-container">
+                    <label for="style-select">Style:</label>
+                    <select id="style-select"></select>
+                </div>
+                <div class="select-container">
+                    <label for="locale-select">Locale:</label>
+                    <select id="locale-select"></select>
+                </div>
+            </div>
+        `;
+
+        const dialogElement = createElementFromHTML(`<div>${dialogTemplate}</div>`);
+        this.shadowRoot.appendChild(dialogElement);
+
+        const link = this.shadowRoot.querySelector("link");
         getURL("dialogStyle").then((url) => {
             link.setAttribute("href", url);
         });
 
-        const header = document.createElement("div");
-        header.classList.add("dialog-header");
-
-        const titleSlot = document.createElement("slot");
-        titleSlot.name = "title";
-        header.appendChild(titleSlot);
-
-        const closeButton = document.createElement("button");
-        closeButton.classList.add("close-button");
-        closeButton.textContent = "×";
-        header.appendChild(closeButton);
-
-        const content = document.createElement("div");
-        content.classList.add("dialog-content");
-
-        const referenceContainer = document.createElement("div");
-        referenceContainer.classList.add("citation-container");
-
-        const referenceLabel = document.createElement("h4");
-        referenceLabel.classList.add("label");
-        referenceLabel.textContent = "Reference list entry";
-
-        const referenceSlot = document.createElement("slot");
-        referenceSlot.name = "reference";
-
-        referenceContainer.appendChild(referenceLabel);
-        referenceContainer.appendChild(referenceSlot);
-
-        const intextContainer = document.createElement("div");
-        intextContainer.classList.add("citation-container");
-
-        const intextLabel = document.createElement("h4");
-        intextLabel.classList.add("label");
-        intextLabel.textContent = "In-text citation";
-
-        const intextSlot = document.createElement("slot");
-        intextSlot.name = "intext";
-
-        intextContainer.appendChild(intextLabel);
-        intextContainer.appendChild(intextSlot);
-
-        content.appendChild(referenceContainer);
-        content.appendChild(intextContainer);
-
-        const options = document.createElement("div");
-        options.classList.add("dialog-options");
-
-        const styleContainer = document.createElement("div");
-        styleContainer.classList.add("select-container");
-        const styleLabel = document.createElement("label");
-        styleLabel.setAttribute("for", "style-select");
-        styleLabel.textContent = "Style:";
-        const styleSelect = document.createElement("select");
-        styleSelect.id = "style-select";
-        styleContainer.appendChild(styleLabel);
-        styleContainer.appendChild(styleSelect);
-
-        const localeContainer = document.createElement("div");
-        localeContainer.classList.add("select-container");
-        const localeLabel = document.createElement("label");
-        localeLabel.setAttribute("for", "locale-select");
-        localeLabel.textContent = "Locale:";
-        const localeSelect = document.createElement("select");
-        localeSelect.id = "locale-select";
-        localeContainer.appendChild(localeLabel);
-        localeContainer.appendChild(localeSelect);
-
-        options.appendChild(styleContainer);
-        options.appendChild(localeContainer);
-
-        this.shadowRoot.appendChild(link);
-        this.shadowRoot.appendChild(header);
-        this.shadowRoot.appendChild(content);
-        this.shadowRoot.appendChild(options);
-
+        const closeButton = this.shadowRoot.querySelector(".close-button");
         closeButton.addEventListener("click", () => this.close());
 
-        this.styleSelect = styleSelect;
-        this.localeSelect = localeSelect;
+        this.styleSelect = this.shadowRoot.querySelector("#style-select");
+        this.localeSelect = this.shadowRoot.querySelector("#locale-select");
+
+        this.styleSelect.addEventListener("change", () => {
+            this.#updateDialog();
+            save("style", this.styleSelect.value);
+        });
+        this.localeSelect.addEventListener("change", () => {
+            this.#updateDialog();
+            save("locale", this.localeSelect.value);
+        });
     }
 
     #populateSelect(selectElement, options) {
         options.forEach((option) => {
-            const opt = document.createElement("option");
-            opt.value = option.value || option;
-            opt.textContent = option.label || option;
+            const opt = createElementFromHTML(`
+                <option value="${option.value || option}">${option.label || option}</option>
+            `);
             selectElement.appendChild(opt);
         });
     }
@@ -208,9 +173,24 @@ class CiteEaseDialog extends HTMLElement {
                 intextElement.innerHTML = intext;
                 referenceElement.classList.remove("error", "loading");
                 intextElement.classList.remove("error", "loading");
-                referenceElement.onclick = () => navigator.clipboard.writeText(referenceElement.textContent.trim());
-                intextElement.onclick = () => navigator.clipboard.writeText(intextElement.textContent.trim());
-                // TODO: Show feedback after copying the text
+
+                referenceElement.onclick = () => {
+                    navigator.clipboard.writeText(referenceElement.textContent.trim()).then(() => {
+                        const feedback = this.shadowRoot.querySelector("#reference-feedback");
+                        feedback.textContent = "Copied!";
+                        feedback.classList.add("show");
+                        setTimeout(() => feedback.classList.remove("show"), 2000);
+                    });
+                };
+
+                intextElement.onclick = () => {
+                    navigator.clipboard.writeText(intextElement.textContent.trim()).then(() => {
+                        const feedback = this.shadowRoot.querySelector("#intext-feedback");
+                        feedback.textContent = "Copied!";
+                        feedback.classList.add("show");
+                        setTimeout(() => feedback.classList.remove("show"), 2000);
+                    });
+                };
             } else {
                 throw new Error("Failed to retrieve citation data");
             }
@@ -234,17 +214,11 @@ class CiteEaseDialog extends HTMLElement {
 
         this.#populateSelect(
             this.styleSelect,
-            styles.map((style) => ({
-                value: style.code,
-                label: style.name.long,
-            }))
+            styles.map((style) => ({ value: style.code, label: style.name.long }))
         );
         this.#populateSelect(
             this.localeSelect,
-            locales.map((locale) => ({
-                value: locale.code,
-                label: locale.name.english,
-            }))
+            locales.map((locale) => ({ value: locale.code, label: locale.name.english }))
         );
 
         load("style").then((savedStyle) => {
@@ -253,15 +227,6 @@ class CiteEaseDialog extends HTMLElement {
         load("locale").then((savedLocale) => {
             if (savedLocale) this.localeSelect.value = savedLocale;
         });
-
-        const closeDialog = (event) => {
-            if (!this.contains(event.target) && event.target !== this) {
-                this.close();
-                document.removeEventListener("click", closeDialog);
-            }
-        };
-
-        document.addEventListener("click", closeDialog);
     }
 
     show(options) {
@@ -270,35 +235,27 @@ class CiteEaseDialog extends HTMLElement {
         this.setAttribute("data-type", dataType);
         this.setAttribute("data-value", dataValue);
 
-        const titleSlot = document.createElement("div");
-        titleSlot.setAttribute("slot", "title");
-        titleSlot.textContent = `${dataType}: ${dataValue}`;
+        const titleSlot = createElementFromHTML(`
+            <div slot="title">${dataType}: ${dataValue}</div>
+        `);
 
-        const referenceSlot = document.createElement("div");
-        referenceSlot.setAttribute("slot", "reference");
+        const referenceSlot = createElementFromHTML(`
+            <div slot="reference">
+                <style>${citationStyles}\n${referenceStyles}</style>
+                <p id="reference"></p>
+            </div>
+        `);
 
-        const referenceStyleElement = document.createElement("style");
-        referenceStyleElement.textContent = `${citationStyles}\n${referenceStyles}`;
-        const referenceElement = document.createElement("p");
-        referenceElement.id = "reference";
+        const intextSlot = createElementFromHTML(`
+            <div slot="intext">
+                <style>${citationStyles}\n${intextStyles}</style>
+                <p id="intext"></p>
+            </div>
+        `);
 
-        referenceSlot.appendChild(referenceStyleElement);
-        referenceSlot.appendChild(referenceElement);
-
-        const intextSlot = document.createElement("div");
-        intextSlot.setAttribute("slot", "intext");
-
-        const intextStyleElement = document.createElement("style");
-        intextStyleElement.textContent = `${citationStyles}\n${intextStyles}`;
-        const intextElement = document.createElement("p");
-        intextElement.id = "intext";
-
-        intextSlot.appendChild(intextStyleElement);
-        intextSlot.appendChild(intextElement);
-
-        this.appendChild(titleSlot);
-        this.appendChild(referenceSlot);
-        this.appendChild(intextSlot);
+        this.append(titleSlot, referenceSlot, intextSlot);
+        this.referenceElement = referenceSlot.querySelector("#reference");
+        this.intextElement = intextSlot.querySelector("#intext");
 
         if (targetElement) {
             const rect = targetElement.getBoundingClientRect();
@@ -306,19 +263,7 @@ class CiteEaseDialog extends HTMLElement {
             this.style.left = `${rect.left + window.scrollX}px`;
         }
 
-        this.referenceElement = referenceElement;
-        this.intextElement = intextElement;
-
-        this.styleSelect.addEventListener("change", () => {
-            this.#updateDialog();
-            save("style", this.styleSelect.value);
-        });
-        this.localeSelect.addEventListener("change", () => {
-            this.#updateDialog();
-            save("locale", this.localeSelect.value);
-        });
         this.#updateDialog();
-
         document.documentElement.append(this);
         this.classList.remove("hidden");
     }
