@@ -8,6 +8,7 @@ class CSLJsonParser {
 
     #CORS_PROXY = "https://corsproxy.io/?";
 
+    // TODO: Should save several files in the storage
     async #getCslFile(style) {
         const response = await fetch(
             `https://raw.githubusercontent.com/citation-style-language/styles/master/${style}.csl`
@@ -17,6 +18,7 @@ class CSLJsonParser {
         return text;
     }
 
+    // TODO: Should save several files in the storage
     #getLocaleFile(lang) {
         const xhr = new XMLHttpRequest();
         xhr.open(

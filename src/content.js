@@ -11,6 +11,7 @@ async function sendMessages() {
     const icon = chrome.runtime.getURL("images/icon-48.png");
     const dialogStyle = chrome.runtime.getURL("citeease-dialog.css");
     const buttonStyle = chrome.runtime.getURL("citeease-button.css");
+    const menuStyle = chrome.runtime.getURL("citeease-menu.css");
     const styles = chrome.runtime.getURL("json/styles.json");
     const locales = chrome.runtime.getURL("json/locales.json");
 
@@ -36,6 +37,7 @@ async function sendMessages() {
                     icon,
                     dialogStyle,
                     buttonStyle,
+                    menuStyle,
                     styles,
                     locales,
                     currentTab,

@@ -1,5 +1,6 @@
 const { getURL, load, save, createElementFromHTML } = require("./utils");
 const CSLJsonParser = require("./CSLJsonParser");
+require("./CiteEaseMenu");
 
 const citationStyles = `
     #reference,
@@ -90,6 +91,7 @@ class CiteEaseDialog extends HTMLElement {
                     <select id="locale-select"></select>
                 </div>
             </div>
+            <citeease-menu></citeease-menu>
         `;
 
         const dialogElement = createElementFromHTML(`<div>${dialogTemplate}</div>`);
