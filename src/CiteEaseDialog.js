@@ -137,8 +137,8 @@ class CiteEaseDialog extends HTMLElement {
         localeContainer.appendChild(localeLabel);
         localeContainer.appendChild(localeSelect);
 
-        options.appendChild(localeContainer);
         options.appendChild(styleContainer);
+        options.appendChild(localeContainer);
 
         this.shadowRoot.appendChild(link);
         this.shadowRoot.appendChild(header);

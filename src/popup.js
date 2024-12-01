@@ -1,9 +1,7 @@
 const CSLJsonParser = require("./CSLJsonParser");
 
-const config = {
-    style: "apa",
-    locale: "en-US",
-};
+let style = "apa";
+let locale = "en-US";
 
 async function save(key, value) {
     await chrome.storage.local.set({ [key]: value });
@@ -28,8 +26,8 @@ async function updateDialog(html, currentTabURL) {
 
     try {
         const parser = new CSLJsonParser();
-        await parser.fromHTML(html, { prioritizeIdentifiers: ["DOI", "PMCID", "PMID"], url: currentTabURL }); // DOI should be the first because it's the quickest one to retreive data from.
-        const [reference, intext] = await parser.toBibliography(config);
+        await parser.fromHTML(html, { prioritizeIdentifiers: ["DOI", "PMCID", "PMID"], url: currentTabURL });
+        const [reference, intext] = await parser.toBibliography({ style, locale });
 
         if (reference) {
             referenceElement.innerHTML = reference;
@@ -77,7 +75,7 @@ function main() {
                 value: locale.code,
                 label: locale.name.english,
             })),
-            config.locale
+            locale
         );
         populateSelect(
             "style-select",
@@ -85,13 +83,13 @@ function main() {
                 value: style.code,
                 label: style.name.long,
             })),
-            config.style
+            style
         );
 
-        const loadedConfig = await load("config");
-        if (loadedConfig) Object.assign(config, loadedConfig);
-        document.getElementById("style-select").value = config.style;
-        document.getElementById("locale-select").value = config.locale;
+        style = (await load("style")) ?? style;
+        locale = (await load("locale")) ?? locale;
+        document.getElementById("style-select").value = style;
+        document.getElementById("locale-select").value = locale;
 
         const currentTabURL = await new Promise((resolve) => {
             chrome.tabs.query({ active: true, currentWindow: true }, (result) => resolve(result[0].url));
@@ -108,14 +106,14 @@ function main() {
                     const html = results[0].result;
 
                     document.getElementById("style-select").addEventListener("change", (event) => {
-                        config.style = event.target.value;
-                        save("config", config);
+                        style = event.target.value;
+                        save("style", style);
                         updateDialog(html, currentTabURL);
                     });
 
                     document.getElementById("locale-select").addEventListener("change", (event) => {
-                        config.locale = event.target.value;
-                        save("config", config);
+                        locale = event.target.value;
+                        save("locale", locale);
                         updateDialog(html, currentTabURL);
                     });
 

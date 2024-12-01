@@ -8,11 +8,11 @@ class CSLJsonParser {
 
     #CORS_PROXY = "https://corsproxy.io/?";
 
-    #getCslFile(style) {
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", `https://raw.githubusercontent.com/citation-style-language/styles/master/${style}.csl`, false);
-        xhr.send(null);
-        const text = xhr.responseText;
+    async #getCslFile(style) {
+        const response = await fetch(
+            `https://raw.githubusercontent.com/citation-style-language/styles/master/${style}.csl`
+        );
+        const text = await response.text();
 
         return text;
     }
@@ -213,22 +213,19 @@ class CSLJsonParser {
 
     async fromHTML(html, options) {
         return this.#retryWithDelay(async () => {
-            const { prioritizeIdentifiers = [], url = undefined } = options;
+            const { prioritizeIdentifiers = [], url = undefined, citeAsArticle = false } = options;
 
             const parser = new DOMParser();
             const document = parser.parseFromString(String(html), "text/html");
 
-            const extractAuthors = () => {
-                const authors = [];
-                document.querySelectorAll('meta[name="author"], meta[name="article:author"]').forEach((meta) => {
-                    authors.push(meta.getAttribute("content") || "");
-                });
-                return this.#createAuthorsArray(authors);
-            };
+            const extractContent = (selector, attr, firstElementOnly = true) => {
+                const elements = document.querySelectorAll(selector);
+                const valuesArray = Array.from(elements).map((element) =>
+                    attr ? element.getAttribute(attr) || "" : element.textContent || ""
+                );
 
-            const extractContent = (selector, attr) => {
-                const element = document.querySelector(selector);
-                return element ? (attr ? element.getAttribute(attr) || "" : element.textContent || "") : "";
+                if (valuesArray.length === 0) return undefined;
+                return firstElementOnly ? valuesArray[0] : valuesArray;
             };
 
             const getAvailableIdentifiers = () => {
@@ -244,12 +241,20 @@ class CSLJsonParser {
                     doiMatch = keywords.match(/doi:[^,]+/);
                 }
 
+                const doiMetas = [
+                    'meta[name="publication_doi"]',
+                    'meta[name="citation_doi"]',
+                    'meta[name="wkhealth_doi"]',
+                ];
+
+                const pmidMetas = ['meta[name="citation_pmid"]', 'meta[name="ncbi_uid"]'];
+
                 const doi =
-                    extractContent('meta[name="publication_doi"], meta[name="citation_doi"]', "content") ||
+                    extractContent(doiMetas.join(", "), "content") ||
                     (doiMatch && doiMatch[0] ? doiMatch[0].replace("doi:", "") : undefined);
 
                 const pmid =
-                    extractContent('meta[name="ncbi_uid"]', "content") ||
+                    extractContent(pmidMetas.join(", "), "content") ||
                     (pmidMatch && pmidMatch[0] ? pmidMatch[0].replace("pmid:", "") : undefined);
 
                 const pmcid = pmcidMatch && pmcidMatch[0] ? pmcidMatch[0] : undefined;
@@ -277,17 +282,88 @@ class CSLJsonParser {
                 }
             }
 
-            const newCslJsonObject = {
-                id: uid(),
-                type: "webpage",
-                title: extractContent("title"),
-                author: extractAuthors(),
-                "container-title": extractContent('meta[property="og:site_name"]', "content"),
-                publisher: extractContent('meta[property="article:publisher"]', "content"),
-                accessed: this.#createDateObject(new Date()),
-                issued: this.#createDateObject(new Date(extractContent('meta[name="date"]', "content") || "")),
-                URL: extractContent('meta[property="og:url"]', "content") || url,
-            };
+            let newCslJsonObject;
+            const contentType = extractContent(
+                'meta[name="citation_article_type"], meta[property="og:type"], meta[name="dc.type"]',
+                "content"
+            );
+
+            if (citeAsArticle || /(article|Article)/.test(contentType)) {
+                const firstPage = parseInt(
+                    extractContent(
+                        'meta[name="citation_first_page"], meta[name="wkhealth_first_page"], meta[name="prism.startingPage"]',
+                        "content"
+                    )
+                );
+                const lastPage = parseInt(
+                    extractContent(
+                        'meta[name="citation_last_page"], meta[name="wkhealth_last_page"], meta[name="prism.endingPage"]',
+                        "content"
+                    )
+                );
+                const authorsArray =
+                    extractContent('meta[name="citation_author"]', "content", false) ||
+                    extractContent('meta[name="wkhealth_authors"]', "content").split(";") ||
+                    extractContent('meta[name="dc.creator"]', "content", false);
+
+                newCslJsonObject = {
+                    id: uid(),
+                    type: contentType || "article",
+                    DOI: extractContent(
+                        'meta[name="DOI"], meta[name="citation_doi"], meta[name="wkhealth_doi"], meta[name="prism.doi"]',
+                        "content"
+                    ).replace("doi:", ""),
+                    URL:
+                        extractContent(
+                            'meta[name="citation_fulltext_html_url"], meta[name="wkhealth_fulltext_html_url"], meta[name="prism.url"]',
+                            "content"
+                        ) || url,
+                    ISSN: extractContent('meta[name="citation_issn"], meta[name="wkhealth_issn"]', "content"),
+                    "container-title": extractContent(
+                        'meta[name="citation_journal_title"], meta[name="wkhealth_journal_title"], meta[name="prism.issn"]',
+                        "content"
+                    ),
+                    "container-title-short": extractContent('meta[name="citation_journal_abbrev"]', "content"),
+                    issue: extractContent(
+                        'meta[name="citation_issue"], meta[name="wkhealth_issue"], meta[name="prism.number"]',
+                        "content"
+                    ),
+                    issued: this.#createDateObject(
+                        new Date(
+                            extractContent(
+                                'meta[name="citation_publication_date"], meta[name="citation_online_date"], meta[name="wkhealth_article_publication_date"], meta[name="wkhealth_date"], meta[name="dc.date"], meta[name="prism.publicationDate"]',
+                                "content"
+                            )
+                        )
+                    ),
+                    page: firstPage && lastPage ? lastPage - firstPage : undefined,
+                    publisher: extractContent(
+                        'meta[name="citation_publisher"], meta[name="dc.publisher"], meta[name="prism.publicationName"]',
+                        "content"
+                    ),
+                    title: extractContent('meta[name="citation_title"], meta[name="wkhealth_title"]', "content"),
+                    volume: extractContent(
+                        'meta[name="citation_volume"], meta[name="wkhealth_volume"], meta[name="prism.volume"]',
+                        "content"
+                    ),
+                    accessed: this.#createDateObject(new Date()),
+                    author: this.#createAuthorsArray(authorsArray),
+                };
+            } else {
+                newCslJsonObject = {
+                    id: uid(),
+                    type: "webpage",
+                    title: extractContent("title") || extractContent('meta[property="og:title"]', "content"),
+                    author: extractContent('meta[name="author"], meta[name="article:author"]', "content"),
+                    "container-title": this.#createAuthorsArray(
+                        extractContent('meta[property="og:site_name"], meta[name="Title"]', "content")
+                    ),
+                    publisher: extractContent('meta[property="article:publisher"]', "content"),
+                    accessed: this.#createDateObject(new Date()),
+                    issued: this.#createDateObject(new Date(extractContent('meta[name="date"]', "content") || "")),
+                    URL: extractContent('meta[property="og:url"]', "content") || url,
+                };
+            }
 
             this.cslJson.push(newCslJsonObject);
             return newCslJsonObject;
@@ -305,9 +381,8 @@ class CSLJsonParser {
         });
     }
 
-    // FIXME: The method still synchronous
     async toBibliography(options) {
-        return new Promise((resolve) => {
+        return new Promise(async (resolve) => {
             try {
                 const { style = "apa", locale = "en-US", format = "html" } = options;
 
@@ -339,8 +414,8 @@ class CSLJsonParser {
                     }),
                 };
 
-                const getFormattedCitations = () => {
-                    const cslFile = this.#getCslFile(style);
+                const getFormattedCitations = async () => {
+                    const cslFile = await this.#getCslFile(style);
                     const citeproc = new Citeproc.Engine(processorFunctions, cslFile);
                     citeproc.setOutputFormat(format.toLowerCase());
                     citeproc.updateItems(itemIDs);
@@ -349,7 +424,7 @@ class CSLJsonParser {
                     return [references[1].join(format.toLowerCase() === "rtf" ? "\n" : ""), intext];
                 };
 
-                resolve(getFormattedCitations());
+                resolve(await getFormattedCitations());
             } catch (error) {
                 console.error(error);
                 resolve(null);
