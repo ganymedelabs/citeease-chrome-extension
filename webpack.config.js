@@ -3,10 +3,10 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 module.exports = {
     entry: {
-        popup: "./src/popup.js",
-        serviceWorker: "./src/serviceWorker.js",
-        content: "./src/content.js",
-        injected: "./src/injected.js",
+        popup: "./src/popup.ts",
+        serviceWorker: "./src/serviceWorker.ts",
+        content: "./src/content.ts",
+        injected: "./src/injected.ts",
     },
     output: {
         filename: "[name].bundle.js",
@@ -14,6 +14,18 @@ module.exports = {
     },
     mode: "development",
     devtool: "cheap-module-source-map",
+    module: {
+        rules: [
+            {
+                test: /\.ts$/,
+                use: "ts-loader",
+                exclude: /node_modules/,
+            },
+        ],
+    },
+    resolve: {
+        extensions: [".ts", ".js"],
+    },
     plugins: [
         new CopyWebpackPlugin({
             patterns: [{ from: "static" }],

@@ -1,6 +1,8 @@
-const { getURL, load, save, createElementFromHTML } = require("./utils");
-const CSLJsonParser = require("./CSLJsonParser");
-require("./CiteEaseMenu");
+import CSLJsonParser from "./CSLJsonParser";
+import { getURL, load, save, createElementFromHTML } from "./utils";
+import "./CiteEaseMenu";
+
+type ShowOptions = { dataType?: string; dataValue?: string; targetElement?: HTMLElement };
 
 const citationStyles = `
     #reference,
@@ -60,7 +62,18 @@ const referenceStyles = `
 
 const intextStyles = "";
 
+declare global {
+    interface HTMLElementTagNameMap {
+        "citeease-dialog": CiteEaseDialog;
+    }
+}
+
 class CiteEaseDialog extends HTMLElement {
+    styleSelect;
+    localeSelect;
+    referenceElement: HTMLElement | undefined;
+    intextElement: HTMLElement | undefined;
+
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
@@ -94,19 +107,21 @@ class CiteEaseDialog extends HTMLElement {
             <citeease-menu></citeease-menu>
         `;
 
-        const dialogElement = createElementFromHTML(`<div>${dialogTemplate}</div>`);
-        this.shadowRoot.appendChild(dialogElement);
+        const shadow = this.shadowRoot as ShadowRoot;
 
-        const link = this.shadowRoot.querySelector("link");
+        const dialogElement = createElementFromHTML(`<div>${dialogTemplate}</div>`) as HTMLDivElement;
+        shadow.appendChild(dialogElement);
+
+        const link = shadow.querySelector("link") as HTMLLinkElement;
         getURL("dialogStyle").then((url) => {
-            link.setAttribute("href", url);
+            link.setAttribute("href", url!);
         });
 
-        const closeButton = this.shadowRoot.querySelector(".close-button");
+        const closeButton = shadow.querySelector(".close-button") as HTMLButtonElement;
         closeButton.addEventListener("click", () => this.close());
 
-        this.styleSelect = this.shadowRoot.querySelector("#style-select");
-        this.localeSelect = this.shadowRoot.querySelector("#locale-select");
+        this.styleSelect = shadow.querySelector("#style-select") as HTMLSelectElement;
+        this.localeSelect = shadow.querySelector("#locale-select") as HTMLSelectElement;
 
         this.styleSelect.addEventListener("change", () => {
             this.#updateDialog();
@@ -118,19 +133,20 @@ class CiteEaseDialog extends HTMLElement {
         });
     }
 
-    #populateSelect(selectElement, options) {
+    #populateSelect(selectElement: HTMLSelectElement, options: Record<string, string>[]) {
         options.forEach((option) => {
             const opt = createElementFromHTML(`
                 <option value="${option.value || option}">${option.label || option}</option>
             `);
-            selectElement.appendChild(opt);
+            selectElement.appendChild(opt!);
         });
     }
 
     async #getCitation() {
-        const type = this.getAttribute("data-type");
-        const value = this.getAttribute("data-value");
+        const type = this.getAttribute("data-type") as string;
+        const value = this.getAttribute("data-value") as string;
 
+        /* eslint-disable indent */
         const parser = new CSLJsonParser();
         switch (type) {
             case "URL":
@@ -149,6 +165,7 @@ class CiteEaseDialog extends HTMLElement {
                 await parser.fromISBN(value);
                 break;
         }
+        /* eslint-enable indent */
 
         const style = this.styleSelect.value;
         const locale = this.localeSelect.value;
@@ -157,8 +174,9 @@ class CiteEaseDialog extends HTMLElement {
     }
 
     async #updateDialog() {
-        const referenceElement = this.referenceElement;
-        const intextElement = this.intextElement;
+        const referenceElement = this.referenceElement as HTMLElement;
+        const intextElement = this.intextElement as HTMLElement;
+        const shadow = this.shadowRoot as ShadowRoot;
 
         referenceElement.textContent = "";
         intextElement.textContent = "";
@@ -177,8 +195,8 @@ class CiteEaseDialog extends HTMLElement {
                 intextElement.classList.remove("error", "loading");
 
                 referenceElement.onclick = () => {
-                    navigator.clipboard.writeText(referenceElement.textContent.trim()).then(() => {
-                        const feedback = this.shadowRoot.querySelector("#reference-feedback");
+                    navigator.clipboard.writeText(referenceElement.textContent!.trim()).then(() => {
+                        const feedback = shadow.querySelector("#reference-feedback") as HTMLElement;
                         feedback.textContent = "Copied!";
                         feedback.classList.add("show");
                         setTimeout(() => feedback.classList.remove("show"), 2000);
@@ -186,8 +204,8 @@ class CiteEaseDialog extends HTMLElement {
                 };
 
                 intextElement.onclick = () => {
-                    navigator.clipboard.writeText(intextElement.textContent.trim()).then(() => {
-                        const feedback = this.shadowRoot.querySelector("#intext-feedback");
+                    navigator.clipboard.writeText(intextElement.textContent!.trim()).then(() => {
+                        const feedback = shadow.querySelector("#intext-feedback") as HTMLElement;
                         feedback.textContent = "Copied!";
                         feedback.classList.add("show");
                         setTimeout(() => feedback.classList.remove("show"), 2000);
@@ -197,6 +215,8 @@ class CiteEaseDialog extends HTMLElement {
                 throw new Error("Failed to retrieve citation data");
             }
         } catch (error) {
+            console.error(error);
+
             referenceElement.innerHTML = "Failed to retrieve source data";
             intextElement.innerHTML = "Failed to format in-text citation";
             referenceElement.classList.remove("loading");
@@ -211,31 +231,37 @@ class CiteEaseDialog extends HTMLElement {
     async connectedCallback() {
         const localesURL = await getURL("locales");
         const stylesURL = await getURL("styles");
-        const locales = await fetch(localesURL).then((res) => res.json());
-        const styles = await fetch(stylesURL).then((res) => res.json());
+        const locales = await fetch(localesURL!).then((res) => res.json());
+        const styles = await fetch(stylesURL!).then((res) => res.json());
 
         this.#populateSelect(
             this.styleSelect,
-            styles.map((style) => ({ value: style.code, label: style.name.long }))
+            styles.map((style: Record<string, unknown>) => ({
+                value: style.code,
+                label: (style.name as Record<string, string>).long,
+            }))
         );
         this.#populateSelect(
             this.localeSelect,
-            locales.map((locale) => ({ value: locale.code, label: locale.name.english }))
+            locales.map((locale: Record<string, unknown>) => ({
+                value: locale.code,
+                label: (locale.name as Record<string, string>).english,
+            }))
         );
 
-        load("style").then((savedStyle) => {
+        load("style").then((savedStyle: string) => {
             if (savedStyle) this.styleSelect.value = savedStyle;
         });
-        load("locale").then((savedLocale) => {
+        load("locale").then((savedLocale: string) => {
             if (savedLocale) this.localeSelect.value = savedLocale;
         });
     }
 
-    show(options) {
+    show(options: ShowOptions) {
         const { dataType, dataValue, targetElement } = options;
 
-        this.setAttribute("data-type", dataType);
-        this.setAttribute("data-value", dataValue);
+        this.setAttribute("data-type", dataType!);
+        this.setAttribute("data-value", dataValue!);
 
         const titleSlot = createElementFromHTML(`
             <div slot="title">${dataType}: ${dataValue}</div>
@@ -255,9 +281,9 @@ class CiteEaseDialog extends HTMLElement {
             </div>
         `);
 
-        this.append(titleSlot, referenceSlot, intextSlot);
-        this.referenceElement = referenceSlot.querySelector("#reference");
-        this.intextElement = intextSlot.querySelector("#intext");
+        this.append(titleSlot!, referenceSlot!, intextSlot!);
+        this.referenceElement = referenceSlot?.querySelector("#reference") as HTMLElement;
+        this.intextElement = intextSlot?.querySelector("#intext") as HTMLElement;
 
         if (targetElement) {
             const rect = targetElement.getBoundingClientRect();

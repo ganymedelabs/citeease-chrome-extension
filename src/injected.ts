@@ -1,8 +1,8 @@
-require("./CiteEaseDialog");
-require("./CiteEaseButton");
+import "./CiteEaseDialog";
+import "./CiteEaseButton";
 
-function addCiteeaseButtons() {
-    const identifierPatterns = {
+function addCiteeaseButtons(): void {
+    const identifierPatterns: Record<string, RegExp> = {
         DOI: /^((https?:\/\/)?(?:dx\.)?doi\.org\/)?10\.\d{4,9}\/[-._;()/:a-zA-Z0-9]+$/,
         URL: /^(https?:\/\/)[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+$/,
         PMCID: /^PMC\d+$/,
@@ -28,7 +28,7 @@ function addCiteeaseButtons() {
         ];
         if (new RegExp(excludedTags.join("|"), "i").test(element.nodeName)) return;
 
-        let text = element.textContent.trim();
+        let text = (element.textContent || "").trim();
         let modified = false;
 
         for (const [type, regex] of Object.entries(identifierPatterns)) {

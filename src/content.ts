@@ -1,23 +1,21 @@
-function injectScript() {
+function injectScript(): void {
     const script = document.createElement("script");
     script.src = chrome.runtime.getURL("injected.bundle.js");
-    script.onload = function () {
-        this.remove();
-    };
+    script.onload = () => script.remove();
     document.documentElement.appendChild(script);
 }
 
-async function sendMessages() {
-    const icon = chrome.runtime.getURL("images/icon-48.png");
-    const dialogStyle = chrome.runtime.getURL("citeease-dialog.css");
-    const buttonStyle = chrome.runtime.getURL("citeease-button.css");
-    const menuStyle = chrome.runtime.getURL("citeease-menu.css");
-    const styles = chrome.runtime.getURL("json/styles.json");
-    const locales = chrome.runtime.getURL("json/locales.json");
+async function sendMessages(): Promise<void> {
+    const icon: string = chrome.runtime.getURL("images/icon-48.png");
+    const dialogStyle: string = chrome.runtime.getURL("citeease-dialog.css");
+    const buttonStyle: string = chrome.runtime.getURL("citeease-button.css");
+    const menuStyle: string = chrome.runtime.getURL("citeease-menu.css");
+    const styles: string = chrome.runtime.getURL("json/styles.json");
+    const locales: string = chrome.runtime.getURL("json/locales.json");
 
-    const getCurrentTabURL = () => {
+    const getCurrentTabURL = (): Promise<string | null> => {
         return new Promise((resolve) => {
-            chrome.runtime.sendMessage({ type: "GET_TAB_URL" }, (response) => {
+            chrome.runtime.sendMessage({ type: "GET_TAB_URL" }, (response: { url: string | null }) => {
                 if (response && response.url) {
                     resolve(response.url);
                 } else {
@@ -28,7 +26,7 @@ async function sendMessages() {
         });
     };
 
-    window.addEventListener("message", async (event) => {
+    window.addEventListener("message", async (event: MessageEvent) => {
         if (event.data.type === "GET_URL") {
             const currentTab = await getCurrentTabURL();
             window.postMessage(
@@ -47,8 +45,11 @@ async function sendMessages() {
         }
     });
 
-    window.addEventListener("FROM_INJECTED", async (event) => {
-        const { action, key, value } = event.detail;
+    window.addEventListener("FROM_INJECTED", async (event: Event) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const customEvent = event as CustomEvent<{ action: string; key: string; value?: any }>;
+
+        const { action, key, value } = customEvent.detail;
 
         if (action === "SAVE") {
             await chrome.storage.local.set({ [key]: value });
@@ -56,7 +57,8 @@ async function sendMessages() {
         }
 
         if (action === "LOAD") {
-            chrome.storage.local.get([key], (result) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            chrome.storage.local.get([key], (result: Record<string, any>) => {
                 const value = result[key];
                 window.dispatchEvent(new CustomEvent("FROM_EXTENSION", { detail: { action: "LOAD", key, value } }));
             });

@@ -1,39 +1,47 @@
-const CSLJsonParser = require("./CSLJsonParser");
+import CSLJsonParser from "./CSLJsonParser"; // eslint-disable-line import/no-unresolved
 
-let style = "apa";
-let locale = "en-US";
+// const CSLJsonParser: CSLJsonParser = require("./CSLJsonParser");
 
-async function save(key, value) {
+let style: string = "apa";
+let locale: string = "en-US";
+
+async function save(key: string, value: string): Promise<void> {
     await chrome.storage.local.set({ [key]: value });
 }
 
-async function load(key) {
-    return await new Promise((resolve) => {
+async function load(key: string): Promise<string | undefined> {
+    return new Promise((resolve) => {
         chrome.storage.local.get([key], (result) => resolve(result[key]));
     });
 }
 
-function populateSelect(id, items, defaultOption) {
+type SelectItem = {
+    value: string;
+    label: string;
+};
+
+function populateSelect(id: string, items: SelectItem[], defaultOption: string): void {
     const totalItems = items.length;
     const itemHeight = 30;
     const visibleItemsCount = Math.ceil(200 / itemHeight);
     const buffer = 5;
 
-    const selectBox = document.getElementById(id);
+    const selectBox = document.getElementById(id) as HTMLDivElement;
 
     const displayBox = document.createElement("div");
     displayBox.classList.add("display-box");
-    selectBox.value = defaultOption;
-    displayBox.textContent = items.find((item) => item.value === defaultOption).label;
+    selectBox.setAttribute("value", defaultOption);
+    displayBox.textContent = items.find((item) => item.value === defaultOption)?.label || "";
     selectBox.appendChild(displayBox);
 
-    let container;
+    let container: HTMLDivElement | null = null;
 
-    const renderItems = (start, end) => {
-        const list = container.firstChild;
+    const renderItems = (start: number, end: number): void => {
+        if (!container) return;
+        const list = container.firstChild as HTMLDivElement;
 
-        [...list.children].forEach((child) => {
-            const index = parseInt(child.getAttribute("data-index"), 10);
+        Array.from(list.children).forEach((child) => {
+            const index = parseInt((child as HTMLElement).getAttribute("data-index") || "-1", 10);
             if (index < start || index >= end) {
                 child.remove();
             }
@@ -44,12 +52,12 @@ function populateSelect(id, items, defaultOption) {
                 const item = document.createElement("div");
                 item.classList.add("item");
                 item.textContent = items[i].label;
-                item.value = items[i].value;
+                (item as any).value = items[i].value; // eslint-disable-line @typescript-eslint/no-explicit-any
                 item.style.top = `${i * itemHeight}px`;
-                item.setAttribute("data-index", i);
+                item.setAttribute("data-index", i.toString());
 
                 item.addEventListener("click", () => {
-                    selectBox.value = item.value;
+                    selectBox.setAttribute("value", items[i].value);
                     displayBox.textContent = items[i].label;
 
                     const changeEvent = new Event("change", { bubbles: true });
@@ -63,7 +71,7 @@ function populateSelect(id, items, defaultOption) {
         }
     };
 
-    const createDropdown = () => {
+    const createDropdown = (): void => {
         container = document.createElement("div");
         container.className = "container";
 
@@ -82,7 +90,7 @@ function populateSelect(id, items, defaultOption) {
         renderItems(0, visibleItemsCount + buffer * 2);
 
         container.addEventListener("scroll", () => {
-            const scrollTop = container.scrollTop;
+            const scrollTop = container!.scrollTop;
             const start = Math.max(0, Math.floor(scrollTop / itemHeight) - buffer);
             const end = Math.min(totalItems, start + visibleItemsCount + buffer * 2);
             renderItems(start, end);
@@ -91,7 +99,7 @@ function populateSelect(id, items, defaultOption) {
         document.addEventListener("click", handleClickOutside);
     };
 
-    const removeDropdown = () => {
+    const removeDropdown = (): void => {
         if (container) {
             container.remove();
             container = null;
@@ -99,8 +107,8 @@ function populateSelect(id, items, defaultOption) {
         }
     };
 
-    const handleClickOutside = (event) => {
-        if (!selectBox.contains(event.target) && !container.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent): void => {
+        if (!selectBox.contains(event.target as Node) && !container?.contains(event.target as Node)) {
             removeDropdown();
         }
     };
@@ -115,7 +123,7 @@ function populateSelect(id, items, defaultOption) {
     });
 
     const observer = new MutationObserver(() => {
-        const selectedItem = items.find((item) => item.value === selectBox.value);
+        const selectedItem = items.find((item) => item.value === selectBox.getAttribute("value"));
         if (selectedItem) {
             displayBox.textContent = selectedItem.label;
         }
@@ -124,16 +132,16 @@ function populateSelect(id, items, defaultOption) {
     observer.observe(selectBox, { attributes: true, attributeFilter: ["value"] });
 }
 
-async function updateDialog(html, currentTabURL) {
-    const referenceElement = document.getElementById("reference");
-    const intextElement = document.getElementById("intext");
+async function updateDialog(html: string, currentTabURL: string): Promise<void> {
+    const referenceElement = document.getElementById("reference") as HTMLElement;
+    const intextElement = document.getElementById("intext") as HTMLElement;
 
     referenceElement.textContent = "";
     intextElement.textContent = "";
     referenceElement.classList.add("loading");
     intextElement.classList.add("loading");
-    referenceElement.onclick = () => undefined;
-    intextElement.onclick = () => undefined;
+    referenceElement.onclick = null;
+    intextElement.onclick = null;
 
     try {
         const parser = new CSLJsonParser();
@@ -147,8 +155,8 @@ async function updateDialog(html, currentTabURL) {
             intextElement.classList.remove("error", "loading");
 
             referenceElement.onclick = () => {
-                navigator.clipboard.writeText(referenceElement.textContent.trim()).then(() => {
-                    const feedback = document.querySelector("#reference-feedback");
+                navigator.clipboard.writeText(referenceElement.textContent?.trim() || "").then(() => {
+                    const feedback = document.querySelector("#reference-feedback") as HTMLElement;
                     feedback.textContent = "Copied!";
                     feedback.classList.add("show");
                     setTimeout(() => feedback.classList.remove("show"), 2000);
@@ -156,8 +164,8 @@ async function updateDialog(html, currentTabURL) {
             };
 
             intextElement.onclick = () => {
-                navigator.clipboard.writeText(intextElement.textContent.trim()).then(() => {
-                    const feedback = document.querySelector("#intext-feedback");
+                navigator.clipboard.writeText(intextElement.textContent?.trim() || "").then(() => {
+                    const feedback = document.querySelector("#intext-feedback") as HTMLElement;
                     feedback.textContent = "Copied!";
                     feedback.classList.add("show");
                     setTimeout(() => feedback.classList.remove("show"), 2000);
@@ -167,23 +175,27 @@ async function updateDialog(html, currentTabURL) {
             throw new Error("Failed to retrieve citation data");
         }
     } catch (error) {
+        console.error(error);
+
         referenceElement.innerHTML = "Failed to retrieve source data";
         intextElement.innerHTML = "Failed to format in-text citation";
         referenceElement.classList.remove("loading");
         intextElement.classList.remove("loading");
         referenceElement.classList.add("error");
         intextElement.classList.add("error");
-        referenceElement.onclick = () => undefined;
-        intextElement.onclick = () => undefined;
+        referenceElement.onclick = null;
+        intextElement.onclick = null;
     }
 }
 
-async function main() {
+async function main(): Promise<void> {
     document.addEventListener("DOMContentLoaded", async () => {
         const stylesURL = chrome.runtime.getURL("json/styles.json");
         const localesURL = chrome.runtime.getURL("json/locales.json");
-        const styles = await fetch(stylesURL).then((res) => res.json());
-        const locales = await fetch(localesURL).then((res) => res.json());
+        const styles: { code: string; name: { long: string } }[] = await fetch(stylesURL).then((res) => res.json());
+        const locales: { code: string; name: { english: string } }[] = await fetch(localesURL).then((res) =>
+            res.json()
+        );
 
         populateSelect(
             "style-select",
@@ -205,34 +217,40 @@ async function main() {
 
         style = (await load("style")) ?? style;
         locale = (await load("locale")) ?? locale;
-        document.getElementById("style-select").value = style;
-        document.getElementById("locale-select").value = locale;
+        (document.getElementById("style-select") as HTMLSelectElement).value = style;
+        (document.getElementById("locale-select") as HTMLSelectElement).value = locale;
 
-        const currentTabURL = await new Promise((resolve) => {
-            chrome.tabs.query({ active: true, currentWindow: true }, (result) => resolve(result[0].url));
+        const currentTabURL = await new Promise<string>((resolve) => {
+            chrome.tabs.query({ active: true, currentWindow: true }, (result) => resolve(result[0].url as string));
         });
-        document.getElementById("title").textContent = currentTabURL;
+        (document.getElementById("title") as HTMLDivElement).textContent = currentTabURL;
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             chrome.scripting.executeScript(
                 {
-                    target: { tabId: tabs[0].id },
+                    target: { tabId: tabs[0].id as number },
                     func: () => document.documentElement.outerHTML,
                 },
                 (results) => {
-                    const html = results[0].result;
+                    const html = results[0].result as string;
 
-                    document.getElementById("style-select").addEventListener("change", (event) => {
-                        style = event.target.value;
-                        save("style", style);
-                        updateDialog(html, currentTabURL);
-                    });
+                    (document.getElementById("style-select") as HTMLSelectElement).addEventListener(
+                        "change",
+                        (event) => {
+                            style = (event.target as HTMLSelectElement).value;
+                            save("style", style);
+                            updateDialog(html, currentTabURL);
+                        }
+                    );
 
-                    document.getElementById("locale-select").addEventListener("change", (event) => {
-                        locale = event.target.value;
-                        save("locale", locale);
-                        updateDialog(html, currentTabURL);
-                    });
+                    (document.getElementById("locale-select") as HTMLSelectElement).addEventListener(
+                        "change",
+                        (event) => {
+                            locale = (event.target as HTMLSelectElement).value;
+                            save("locale", locale);
+                            updateDialog(html, currentTabURL);
+                        }
+                    );
 
                     updateDialog(html, currentTabURL);
                 }
