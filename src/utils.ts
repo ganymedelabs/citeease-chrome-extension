@@ -73,11 +73,3 @@ export async function load(key: string): Promise<any> {
         window.addEventListener("FROM_EXTENSION", handler as EventListener);
     });
 }
-
-export function createElementFromHTML(htmlString: string): HTMLElement | null {
-    const template = document.createElement("template");
-    htmlString = htmlString.trim();
-    template.innerHTML = htmlString;
-
-    return template.content.firstChild as HTMLElement | null;
-}

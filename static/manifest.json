@@ -27,9 +27,6 @@
                 "injected.bundle.js",
                 "popup.css",
                 "images/icon-48.png",
-                "citeease-dialog.css",
-                "citeease-button.css",
-                "citeease-menu.css",
                 "json/styles.json",
                 "json/locales.json"
             ],

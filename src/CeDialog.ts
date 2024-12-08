@@ -1,10 +1,170 @@
+/**
+ * Recommended Extension for Visual Studio Code:
+ * https://marketplace.visualstudio.com/items?itemName=iuyoy.highlight-string-code
+ */
+
 import CSLJsonParser from "./CSLJsonParser";
-import { getURL, load, save, createElementFromHTML } from "./utils";
-import "./CiteEaseMenu";
+import { getURL, load, save } from "./utils";
+import "./CeSelect";
 
 type ShowOptions = { dataType?: string; dataValue?: string; targetElement?: HTMLElement };
 
+const styles = `
+    /* css */
+    * {
+        box-sizing: border-box;
+    }
+
+    *:focus-visible {
+        outline: 2px solid #364f6b;
+    }
+
+    :host {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+            "Open Sans", "Helvetica Neue", sans-serif;
+        position: absolute;
+        background: white;
+        border-radius: 3px 20px 20px 20px;
+        padding: 20px;
+        max-width: 400px;
+        box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px #00000012, 0 2px 4px #00000012, 0 4px 8px #00000012,
+            0 8px 16px #00000012, 0 16px 32px #00000012, 0 32px 64px #00000012;
+        z-index: 1000;
+        opacity: 1;
+        transform: scale(1);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    :host(.hidden) {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    /* Dialog Header Styles */
+
+    .dialog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+
+    ::slotted([slot="title"]) {
+        font-size: 20px;
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .close-button {
+        user-select: none;
+        background: #ff5f5f;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        min-width: 24px;
+        max-height: 24px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000015, 0 2px 4px #00000015;
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .close-button:hover {
+        background: #e04b4b;
+        box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000020, 0 2px 4px #00000020,
+            0 4px 8px #00000020;
+    }
+
+    /* Dialog Content Styles */
+
+    .dialog-content {
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        gap: 10px;
+        padding-block: 10px;
+        font-size: 14px;
+        color: #333;
+        max-height: 300px;
+        overflow: auto;
+    }
+
+    .citation-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        overflow: auto;
+    }
+
+    .label {
+        position: relative;
+        font-size: 12px;
+        margin: 0;
+        color: #364f6b;
+    }
+
+    ::slotted([slot="reference"]),
+    ::slotted([slot="intext"]) {
+        font-family: Georgia, "Times New Roman", Times, serif;
+        text-align: start;
+        line-height: 1.3rem;
+        margin-block: 0;
+        border-radius: 5px;
+    }
+
+    /* Dialog Options Styles */
+
+    .dialog-options {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .select-container {
+        flex: 1;
+    }
+
+    .select-container label {
+        display: block;
+        font-size: 12px;
+        font-weight: bold;
+        color: #364f6b;
+        margin: 0 0 5px;
+    }
+
+    /* Copied Feedback */
+
+    .copied-feedback {
+        position: relative;
+        right: 10px;
+        opacity: 0;
+        color: #35c46e;
+        font-size: 12px;
+        transition: right 0.5s ease, opacity 0.5s ease;
+    }
+
+    .copied-feedback.show {
+        position: relative;
+        opacity: 1;
+        right: 0px;
+    }
+    /* !css */
+`;
+
 const citationStyles = `
+    /* css */
     #reference,
     #intext {
         margin: 0;
@@ -46,9 +206,9 @@ const citationStyles = `
             background-position: -200% 0;
         }
     }
-`;
 
-const referenceStyles = `
+    /* Citeproc Styles */
+
     .csl-entry:has(.csl-left-margin) {
         display: flex;
         align-items: flex-start;
@@ -58,28 +218,28 @@ const referenceStyles = `
     .csl-entry > .csl-left-margin {
         min-width: fit-content;
     }
+    /* !css */
 `;
-
-const intextStyles = "";
 
 declare global {
     interface HTMLElementTagNameMap {
-        "citeease-dialog": CiteEaseDialog;
+        "ce-dialog": CeDialog;
     }
 }
 
-class CiteEaseDialog extends HTMLElement {
-    styleSelect;
-    localeSelect;
-    referenceElement: HTMLElement | undefined;
-    intextElement: HTMLElement | undefined;
+class CeDialog extends HTMLElement {
+    private styleSelect: HTMLSelectElement | undefined;
+    private localeSelect: HTMLSelectElement | undefined;
+    private referenceElement: HTMLElement | undefined;
+    private intextElement: HTMLElement | undefined;
 
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
 
-        const dialogTemplate = `
-            <link rel="stylesheet" href="">
+        const template = `
+            <!--html-->
+            <style>${styles}</style>
             <div class="dialog-header">
                 <slot name="title"></slot>
                 <button class="close-button">×</button>
@@ -97,52 +257,25 @@ class CiteEaseDialog extends HTMLElement {
             <div class="dialog-options">
                 <div class="select-container">
                     <label for="style-select">Style:</label>
-                    <select id="style-select"></select>
+                    <ce-select id="style-select"></ce-select>
                 </div>
                 <div class="select-container">
                     <label for="locale-select">Locale:</label>
-                    <select id="locale-select"></select>
+                    <ce-select id="locale-select"></ce-select>
                 </div>
             </div>
-            <citeease-menu></citeease-menu>
+            <!--!html-->
         `;
 
         const shadow = this.shadowRoot as ShadowRoot;
 
-        const dialogElement = createElementFromHTML(`<div>${dialogTemplate}</div>`) as HTMLDivElement;
-        shadow.appendChild(dialogElement);
-
-        const link = shadow.querySelector("link") as HTMLLinkElement;
-        getURL("dialogStyle").then((url) => {
-            link.setAttribute("href", url!);
-        });
+        shadow.innerHTML = template;
 
         const closeButton = shadow.querySelector(".close-button") as HTMLButtonElement;
         closeButton.addEventListener("click", () => this.close());
-
-        this.styleSelect = shadow.querySelector("#style-select") as HTMLSelectElement;
-        this.localeSelect = shadow.querySelector("#locale-select") as HTMLSelectElement;
-
-        this.styleSelect.addEventListener("change", () => {
-            this.#updateDialog();
-            save("style", this.styleSelect.value);
-        });
-        this.localeSelect.addEventListener("change", () => {
-            this.#updateDialog();
-            save("locale", this.localeSelect.value);
-        });
     }
 
-    #populateSelect(selectElement: HTMLSelectElement, options: Record<string, string>[]) {
-        options.forEach((option) => {
-            const opt = createElementFromHTML(`
-                <option value="${option.value || option}">${option.label || option}</option>
-            `);
-            selectElement.appendChild(opt!);
-        });
-    }
-
-    async #getCitation() {
+    private async getCitation() {
         const type = this.getAttribute("data-type") as string;
         const value = this.getAttribute("data-value") as string;
 
@@ -167,26 +300,28 @@ class CiteEaseDialog extends HTMLElement {
         }
         /* eslint-enable indent */
 
-        const style = this.styleSelect.value;
-        const locale = this.localeSelect.value;
+        const style = this.styleSelect?.value;
+        const locale = this.localeSelect?.value;
 
         return await parser.toBibliography({ style, locale });
     }
 
-    async #updateDialog() {
+    private async updateDialog() {
         const referenceElement = this.referenceElement as HTMLElement;
         const intextElement = this.intextElement as HTMLElement;
         const shadow = this.shadowRoot as ShadowRoot;
 
         referenceElement.textContent = "";
         intextElement.textContent = "";
+        referenceElement.classList.remove("error");
+        intextElement.classList.remove("error");
         referenceElement.classList.add("loading");
         intextElement.classList.add("loading");
         referenceElement.onclick = () => undefined;
         intextElement.onclick = () => undefined;
 
         try {
-            const [reference, intext] = await this.#getCitation();
+            const [reference, intext] = await this.getCitation();
 
             if (reference) {
                 referenceElement.innerHTML = reference;
@@ -231,29 +366,35 @@ class CiteEaseDialog extends HTMLElement {
     async connectedCallback() {
         const localesURL = await getURL("locales");
         const stylesURL = await getURL("styles");
-        const locales = await fetch(localesURL!).then((res) => res.json());
-        const styles = await fetch(stylesURL!).then((res) => res.json());
+        const styles: { code: string; name: { long: string } }[] = await fetch(stylesURL!).then((res) => res.json());
+        const locales: { code: string; name: { english: string } }[] = await fetch(localesURL!).then((res) =>
+            res.json()
+        );
 
-        this.#populateSelect(
-            this.styleSelect,
-            styles.map((style: Record<string, unknown>) => ({
+        const selectElements = this.shadowRoot?.querySelectorAll("ce-select");
+        const styleSelect = Array.from(selectElements!).find((element) => element.id === "style-select");
+        const localeSelect = Array.from(selectElements!).find((element) => element.id === "locale-select");
+
+        // @ts-expect-error
+        styleSelect?.populate(
+            styles.map((style) => ({
                 value: style.code,
-                label: (style.name as Record<string, string>).long,
+                label: style.name.long,
             }))
         );
-        this.#populateSelect(
-            this.localeSelect,
-            locales.map((locale: Record<string, unknown>) => ({
+        // @ts-expect-error
+        localeSelect?.populate(
+            locales.map((locale) => ({
                 value: locale.code,
-                label: (locale.name as Record<string, string>).english,
+                label: locale.name.english,
             }))
         );
 
         load("style").then((savedStyle: string) => {
-            if (savedStyle) this.styleSelect.value = savedStyle;
+            if (savedStyle) (this.styleSelect as HTMLSelectElement).value = savedStyle;
         });
         load("locale").then((savedLocale: string) => {
-            if (savedLocale) this.localeSelect.value = savedLocale;
+            if (savedLocale) (this.localeSelect as HTMLSelectElement).value = savedLocale;
         });
     }
 
@@ -263,23 +404,27 @@ class CiteEaseDialog extends HTMLElement {
         this.setAttribute("data-type", dataType!);
         this.setAttribute("data-value", dataValue!);
 
-        const titleSlot = createElementFromHTML(`
-            <div slot="title">${dataType}: ${dataValue}</div>
-        `);
+        const titleSlot = document.createElement("div");
+        titleSlot.slot = "title";
+        titleSlot.textContent = `${dataType}: ${dataValue}`;
 
-        const referenceSlot = createElementFromHTML(`
-            <div slot="reference">
-                <style>${citationStyles}\n${referenceStyles}</style>
-                <p id="reference"></p>
-            </div>
-        `);
+        const referenceSlot = document.createElement("div");
+        referenceSlot.slot = "reference";
+        referenceSlot.innerHTML = `
+            <!--html-->
+            <style>${citationStyles}</style>
+            <p id="reference"></p>
+            <!--!html-->
+        `;
 
-        const intextSlot = createElementFromHTML(`
-            <div slot="intext">
-                <style>${citationStyles}\n${intextStyles}</style>
-                <p id="intext"></p>
-            </div>
-        `);
+        const intextSlot = document.createElement("div");
+        intextSlot.slot = "intext";
+        intextSlot.innerHTML = `
+            <!--html-->
+            <style>${citationStyles}</style>
+            <p id="intext"></p>
+            <!--!html-->
+        `;
 
         this.append(titleSlot!, referenceSlot!, intextSlot!);
         this.referenceElement = referenceSlot?.querySelector("#reference") as HTMLElement;
@@ -291,7 +436,19 @@ class CiteEaseDialog extends HTMLElement {
             this.style.left = `${rect.left + window.scrollX}px`;
         }
 
-        this.#updateDialog();
+        this.styleSelect = this.shadowRoot?.getElementById("style-select") as HTMLSelectElement;
+        this.localeSelect = this.shadowRoot?.getElementById("locale-select") as HTMLSelectElement;
+
+        this.styleSelect.addEventListener("change", () => {
+            this.updateDialog();
+            save("style", this.styleSelect?.value);
+        });
+        this.localeSelect.addEventListener("change", () => {
+            this.updateDialog();
+            save("locale", this.localeSelect?.value);
+        });
+
+        this.updateDialog();
         document.documentElement.append(this);
         this.classList.remove("hidden");
     }
@@ -302,4 +459,4 @@ class CiteEaseDialog extends HTMLElement {
     }
 }
 
-customElements.define("citeease-dialog", CiteEaseDialog);
+customElements.define("ce-dialog", CeDialog);

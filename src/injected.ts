@@ -1,7 +1,7 @@
-import "./CiteEaseDialog";
-import "./CiteEaseButton";
+import "./CeDialog";
+import "./CeButton";
 
-function addCiteeaseButtons(): void {
+function addCEButtons(): void {
     const identifierPatterns: Record<string, RegExp> = {
         DOI: /^((https?:\/\/)?(?:dx\.)?doi\.org\/)?10\.\d{4,9}\/[-._;()/:a-zA-Z0-9]+$/,
         URL: /^(https?:\/\/)[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+$/,
@@ -40,7 +40,7 @@ function addCiteeaseButtons(): void {
                 wrapper.style.display = "inline-flex";
                 wrapper.style.alignItems = "center";
 
-                const button = document.createElement("citeease-button");
+                const button = document.createElement("ce-button");
                 button.setAttribute("data-type", type);
                 button.setAttribute("data-value", match);
 
@@ -57,4 +57,4 @@ function addCiteeaseButtons(): void {
     });
 }
 
-setTimeout(addCiteeaseButtons, 1000);
+setTimeout(addCEButtons, 1000);

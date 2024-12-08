@@ -55,6 +55,7 @@ export default [
             "@typescript-eslint/no-var-requires": "off",
             "@typescript-eslint/no-require-imports": "off",
             "import/no-unresolved": "off",
+            "@typescript-eslint/ban-ts-comment": "off",
         },
     },
 ];

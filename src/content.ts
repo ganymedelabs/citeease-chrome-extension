@@ -7,9 +7,6 @@ function injectScript(): void {
 
 async function sendMessages(): Promise<void> {
     const icon: string = chrome.runtime.getURL("images/icon-48.png");
-    const dialogStyle: string = chrome.runtime.getURL("citeease-dialog.css");
-    const buttonStyle: string = chrome.runtime.getURL("citeease-button.css");
-    const menuStyle: string = chrome.runtime.getURL("citeease-menu.css");
     const styles: string = chrome.runtime.getURL("json/styles.json");
     const locales: string = chrome.runtime.getURL("json/locales.json");
 
@@ -33,9 +30,6 @@ async function sendMessages(): Promise<void> {
                 {
                     type: "SET_URL",
                     icon,
-                    dialogStyle,
-                    buttonStyle,
-                    menuStyle,
                     styles,
                     locales,
                     currentTab,
