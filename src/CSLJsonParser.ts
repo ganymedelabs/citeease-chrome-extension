@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import Citeproc from "citeproc";
 import { load, save, uid } from "./utils";
@@ -207,11 +206,15 @@ class CSLJsonParser {
             const newCslJsonObject = {
                 id: uid(),
                 DOI: message.DOI,
-                URL: message.URL || (message.DOI ? `https://doi.org/${message.DOI}` : undefined),
-                ISSN: message.ISSN,
+                URL:
+                    message.URL ||
+                    message.resource.primary.URL ||
+                    (message.DOI ? `https://doi.org/${message.DOI}` : undefined),
+                ISSN: [...message.ISSN],
                 "container-title": message["container-title"][0],
+                "container-title-short": message["short-container-title"][0],
                 issue: message.issue,
-                issued: message.issued,
+                issued: message.issued || message.published,
                 page: message.page,
                 publisher: message.publisher,
                 "publisher-place": message["publisher-place"],
@@ -260,7 +263,7 @@ class CSLJsonParser {
         });
     }
 
-    private async fromPubmed(identifier, identifierType) {
+    private async fromPubmed(identifier: string, identifierType: "PMCID" | "PMID") {
         let url: string;
 
         /* eslint-disable indent */
@@ -277,36 +280,30 @@ class CSLJsonParser {
         /* eslint-enable indent */
 
         const response = await this.fetchWithCache(
-            `${this.CORS_PROXY}${url}`,
+            url,
             this.options.includeCache?.includes("cslJson") ? "cslJson" : undefined
         );
         const data = await response.json();
 
-        let newCslJsonObject: CSLJson;
+        const newCslJsonObject = {
+            id: uid(),
+            DOI: data?.DOI,
+            URL: data.URL || (data.DOI ? `https://doi.org/${data.DOI}` : undefined),
+            ISSN: [data?.ISSN],
+            "container-title": data?.["container-title"],
+            issue: data?.issue,
+            issued: data?.issued,
+            page: data?.page,
+            "publisher-place": data?.["publisher-place"],
+            source: data?.source,
+            title: data?.title,
+            type: data?.type,
+            volume: data?.volume,
+            accessed: this.createDateObject(new Date()),
+            author: data?.author,
+        };
 
-        if (data?.DOI) {
-            await this.fromDOI(data.DOI);
-            newCslJsonObject = this.cslJson.at(-1);
-        } else {
-            newCslJsonObject = {
-                id: uid(),
-                URL: data?.URL,
-                ISSN: data?.ISSN,
-                "container-title": data?.["container-title"],
-                issue: data?.issue,
-                issued: data?.issued,
-                page: data?.page,
-                "publisher-place": data?.["publisher-place"],
-                source: data?.source,
-                title: data?.title,
-                type: data?.type,
-                volume: data?.volume,
-                accessed: this.createDateObject(new Date()),
-                author: data?.author,
-            };
-
-            this.cslJson.push(newCslJsonObject);
-        }
+        this.cslJson.push(newCslJsonObject);
     }
 
     async fromPMCID(pmcid: string): Promise<this> {

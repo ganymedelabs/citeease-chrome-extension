@@ -20,8 +20,18 @@ const styles = `
     }
 
     :host {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
-            "Open Sans", "Helvetica Neue", sans-serif;
+        font-family:
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            Roboto,
+            Oxygen,
+            Ubuntu,
+            Cantarell,
+            "Open Sans",
+            "Helvetica Neue",
+            sans-serif;
         position: absolute;
         background: white;
         border-radius: 3px 20px 20px 20px;
@@ -104,7 +114,7 @@ const styles = `
     .citation-container {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 2px;
         overflow: auto;
     }
 
@@ -119,7 +129,7 @@ const styles = `
     ::slotted([slot="intext"]) {
         font-family: Georgia, "Times New Roman", Times, serif;
         text-align: start;
-        line-height: 1.3rem;
+        line-height: 20px;
         margin-block: 0;
         border-radius: 5px;
     }
@@ -127,13 +137,13 @@ const styles = `
     /* Dialog Options Styles */
 
     .dialog-options {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 10px;
     }
 
     .select-container {
-        flex: 1;
+        min-width: 0;
     }
 
     .select-container label {
@@ -142,6 +152,10 @@ const styles = `
         font-weight: bold;
         color: #364f6b;
         margin: 0 0 5px;
+    }
+
+    .select-container ce-select {
+        width: 100%;
     }
 
     /* Copied Feedback */
@@ -167,9 +181,16 @@ const citationStyles = `
     /* css */
     #reference,
     #intext {
-        margin: 0;
+        all: unset;
+        margin: 4px;
         border-radius: 5px;
         transition: background-color 0.2s ease-out;
+    }
+
+    #reference:focus-visible,
+    #intext:focus-visible {
+        outline: 2px dotted #bcbcbc;
+        outline-offset: 2px;
     }
 
     #reference:not(.loading):not(.error):hover,
@@ -179,8 +200,18 @@ const citationStyles = `
 
     .loading,
     .error {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
-            "Open Sans", "Helvetica Neue", sans-serif;
+        font-family:
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            Roboto,
+            Oxygen,
+            Ubuntu,
+            Cantarell,
+            "Open Sans",
+            "Helvetica Neue",
+            sans-serif;
     }
 
     .loading {
@@ -300,8 +331,8 @@ class CeDialog extends HTMLElement {
         }
         /* eslint-enable indent */
 
-        const style = this.styleSelect?.value;
-        const locale = this.localeSelect?.value;
+        const style = this.styleSelect?.value || "apa";
+        const locale = this.localeSelect?.value || "en-US";
 
         return await parser.toBibliography({ style, locale });
     }
@@ -396,6 +427,15 @@ class CeDialog extends HTMLElement {
         load("locale").then((savedLocale: string) => {
             if (savedLocale) (this.localeSelect as HTMLSelectElement).value = savedLocale;
         });
+
+        const closeDialog = (event: Event) => {
+            if (!this.contains(event.target as Node) && event.target !== this) {
+                this.close();
+                document.removeEventListener("click", closeDialog);
+            }
+        };
+
+        document.addEventListener("click", closeDialog);
     }
 
     show(options: ShowOptions) {
@@ -410,19 +450,21 @@ class CeDialog extends HTMLElement {
 
         const referenceSlot = document.createElement("div");
         referenceSlot.slot = "reference";
+        referenceSlot.style.overflow = "visible";
         referenceSlot.innerHTML = `
             <!--html-->
             <style>${citationStyles}</style>
-            <p id="reference"></p>
+            <button id="reference"></button>
             <!--!html-->
         `;
 
         const intextSlot = document.createElement("div");
         intextSlot.slot = "intext";
+        intextSlot.style.overflow = "visible";
         intextSlot.innerHTML = `
             <!--html-->
             <style>${citationStyles}</style>
-            <p id="intext"></p>
+            <button id="intext"></button>
             <!--!html-->
         `;
 

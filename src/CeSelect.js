@@ -1,47 +1,112 @@
 const styles = `
     /* css */
+    * {
+        box-sizing: border-box;
+    }
+
     :host {
         display: inline-block;
         position: relative;
-        width: 200px;
+        max-width: 100%;
     }
+
+    /* Display Styles */
+
     .selected {
+        user-select: none;
         display: block;
-        padding: 10px;
-        border: 1px solid #ccc;
+        padding: 8px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
         cursor: pointer;
-        background: #fff;
+        color: #333;
+        background: #f9f9f9;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        transition: background-color 0.2s ease;
     }
+
+    .selected:hover {
+        background: #ededed;
+    }
+
+    .selected:focus-visible {
+        outline: 2px solid #364f6b;
+    }
+
+    :host:has(.dropdown.open) > .selected {
+        background: #f9f9f9;
+        outline: 2px solid #364f6b;
+    }
+
+    /* Dropdown Styles */
+
     .dropdown {
         position: absolute;
         top: 100%;
-        left: 0;
         right: 0;
-        border: 1px solid #ccc;
-        background: #fff;
+        border-radius: 5px;
+        background: #f9f9f9;
         max-height: 200px;
-        overflow: auto;
+        overflow: hidden;
         display: none;
+        box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px #00000012, 0 2px 4px #00000012, 0 4px 8px #00000012,
+            0 8px 16px #00000012, 0 16px 32px #00000012, 0 32px 64px #00000012;
     }
+
     .dropdown.open {
         display: block;
     }
+
+    /* Search Bar Styles */
+
     .search-bar {
+        caret-color: #364f6b;
+        position: sticky;
+        top: 0;
         padding: 10px;
-        border-bottom: 1px solid #ccc;
+        width: 100%;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+        z-index: 10;
     }
+
+    .search-bar:focus {
+        border: 2px solid #364f6b;
+        outline: none;
+    }
+
+    /* List Styles */
+
     .list {
-        overflow: hidden;
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100%;
     }
-    .item {
-        padding: 10px;
+
+    .list-item {
+        user-select: none;
+        font-size: 12px;
+        position: relative;
+        right: 0;
+        padding-inline: 10px;
         cursor: pointer;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        transition: background-color 0.2s ease;
     }
-    .item:hover {
-        background: #f0f0f0;
+
+    .list-item:hover {
+        background: #ededed;
     }
-    .hidden {
-        display: none;
+
+    .list-item:focus {
+        outline: 2px solid #364f6b;
     }
     /* !css */
 `;
@@ -57,116 +122,133 @@ class CeSelect extends HTMLElement {
             <div class="selected" tabindex="0">Select an option</div>
             <div class="dropdown">
                 <input type="text" class="search-bar" placeholder="Search..." />
-                <div class="list" style="position: relative; height: 200px; overflow: auto;"></div>
+                <div class="list-holder" style="position: relative; overflow-y: auto;">
+                    <div class="heightForcer"></div>
+                </div>
             </div>
             <!--!html-->
         `;
 
         this.data = [];
-        this.visibleData = [];
-        this.selectedValue = null;
-        this.itemHeight = 30; // Height for virtual scrolling
+        this.filteredData = [];
+        this.dropdownHeight = 200;
+        this.itemHeight = 35;
         this.buffer = 5;
-
+        this.selectedValue = null;
         this.$selected = this.shadowRoot.querySelector(".selected");
         this.$dropdown = this.shadowRoot.querySelector(".dropdown");
         this.$searchBar = this.shadowRoot.querySelector(".search-bar");
-        this.$list = this.shadowRoot.querySelector(".list");
+        this.$listHolder = this.shadowRoot.querySelector(".list-holder");
+        this.$heightForcer = this.shadowRoot.querySelector(".heightForcer");
+        this.view = null;
 
         this.handleSelectClick = this.handleSelectClick.bind(this);
-        this.handleSearch = this.handleSearch.bind(this);
-        this.handleOutsideClick = this.handleOutsideClick.bind(this);
+        this.handleKeydown = this.handleKeydown.bind(this);
         this.handleScroll = this.handleScroll.bind(this);
-
-        // Event listeners
-        this.$selected.addEventListener("click", this.handleSelectClick);
-        this.$searchBar.addEventListener("input", this.handleSearch);
-        document.addEventListener("click", this.handleOutsideClick);
+        this.handleSearch = this.handleSearch.bind(this);
     }
 
     connectedCallback() {
-        this.$list.addEventListener("scroll", this.handleScroll);
+        this.$selected.addEventListener("click", () => this.handleSelectClick());
+        this.$selected.addEventListener("keydown", this.handleKeydown);
+        this.$listHolder.addEventListener("scroll", this.handleScroll);
+        this.$searchBar.addEventListener("input", this.handleSearch);
+
+        const close = (event) => {
+            if (!this.contains(event.target) && event.target !== this) {
+                this.handleSelectClick(true);
+                document.removeEventListener("click", close);
+            }
+        };
+
+        document.addEventListener("click", close);
     }
 
     disconnectedCallback() {
-        document.removeEventListener("click", this.handleOutsideClick);
-        this.$list.removeEventListener("scroll", this.handleScroll);
+        this.$selected.removeEventListener("click", () => this.handleSelectClick());
+        this.$selected.removeEventListener("keydown", this.handleKeydown);
+        this.$listHolder.removeEventListener("scroll", this.handleScroll);
+        this.$searchBar.removeEventListener("input", this.handleSearch);
     }
 
-    handleSelectClick(event) {
-        event.stopPropagation(); // Prevent outside click handler from firing
-        this.$dropdown.classList.toggle("open");
-        if (this.$dropdown.classList.contains("open")) {
-            // Render the initial set of items
-            this.renderItems(0, this.getVisibleCount() + this.buffer * 2);
-        }
-    }
-
-    handleSearch(event) {
-        const query = event.target.value.toLowerCase();
-        this.visibleData = this.data.filter((item) => item.label.toLowerCase().includes(query));
-        this.renderItems(0, this.getVisibleCount() + this.buffer * 2, true);
-    }
-
-    handleOutsideClick(event) {
-        if (!this.contains(event.target)) {
+    handleSelectClick(closeOnly = false) {
+        if (closeOnly) {
             this.$dropdown.classList.remove("open");
+        } else {
+            this.$dropdown.classList.toggle("open");
+        }
+
+        if (this.$dropdown.classList.contains("open")) {
+            this.refreshWindow();
+        }
+
+        this.$listHolder.style.height = `${this.dropdownHeight - this.$searchBar.getBoundingClientRect().height}px`;
+        this.$dropdown.style.height = `${this.dropdownHeight}px`;
+    }
+
+    handleKeydown(event) {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            event.stopPropagation();
+            this.handleSelectClick();
+        } else if (this.$dropdown.classList.contains("open")) {
+            if (/^[\p{L}\p{N}]$/u.test(event.key)) {
+                this.$searchBar.focus();
+                this.handleSearch({ target: this.$searchBar });
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                this.handleSelectClick(true);
+            }
         }
     }
 
     handleScroll() {
-        const scrollTop = this.$list.scrollTop;
-        const start = Math.max(0, Math.floor(scrollTop / this.itemHeight) - this.buffer);
-        const end = Math.min(this.visibleData.length, start + this.getVisibleCount() + this.buffer * 2);
-        this.renderItems(start, end);
+        clearTimeout(this.scrollTimeout);
+        this.scrollTimeout = setTimeout(() => this.refreshWindow(), 10);
+    }
+
+    handleSearch(event) {
+        const query = event.target.value.toLowerCase();
+        this.filteredData = this.data.filter((item) => item.label.toLowerCase().includes(query));
+        this.$heightForcer.style.height = `${this.filteredData.length * this.itemHeight}px`;
+        this.refreshWindow();
     }
 
     populate(items) {
         this.data = items;
-        this.visibleData = items;
-        this.renderItems(0, this.getVisibleCount() + this.buffer * 2, true);
+        this.filteredData = items;
+        this.$heightForcer.style.height = `${this.data.length * this.itemHeight}px`;
+        this.refreshWindow();
     }
 
-    renderItems(start, end, reset = false) {
-        if (reset) {
-            this.$list.innerHTML = "";
+    refreshWindow() {
+        if (this.view) this.$listHolder.removeChild(this.view);
+
+        this.view = document.createElement("div");
+        this.view.className = "list";
+
+        const scrollTop = this.$listHolder.scrollTop;
+        const firstItem = Math.max(0, Math.floor(scrollTop / this.itemHeight) - this.buffer);
+        const visibleCount = Math.ceil(this.$listHolder.offsetHeight / this.itemHeight);
+        const lastItem = Math.min(this.filteredData.length - 1, firstItem + visibleCount + this.buffer);
+
+        this.view.style.top = `${firstItem * this.itemHeight}px`;
+
+        for (let i = firstItem; i <= lastItem; i++) {
+            const item = this.filteredData[i];
+            if (!item) continue;
+
+            const div = document.createElement("div");
+            div.className = "list-item";
+            div.textContent = item.label;
+            div.style.height = `${this.itemHeight}px`;
+            div.style.lineHeight = `${this.itemHeight}px`;
+            div.addEventListener("click", () => this.selectValue(item.value));
+            this.view.appendChild(div);
         }
 
-        const list = this.$list;
-
-        // Remove out-of-view items
-        Array.from(list.children).forEach((child) => {
-            const index = parseInt(child.dataset.index, 10);
-            if (index < start || index >= end) {
-                child.remove();
-            }
-        });
-
-        // Add new items
-        for (let i = start; i < end; i++) {
-            if (!list.querySelector(`.item[data-index="${i}"]`)) {
-                const item = this.visibleData[i];
-                const div = document.createElement("div");
-                div.className = "item";
-                div.textContent = item.label;
-                div.dataset.index = i.toString();
-                div.dataset.value = item.value;
-                div.style.position = "absolute";
-                div.style.top = `${i * this.itemHeight}px`;
-                div.style.height = `${this.itemHeight}px`;
-                div.style.lineHeight = `${this.itemHeight}px`;
-                div.addEventListener("click", () => this.selectValue(item.value));
-                list.appendChild(div);
-            }
-        }
-
-        // Update container height to ensure proper scrolling
-        list.style.height = `${this.visibleData.length * this.itemHeight}px`;
-    }
-
-    getVisibleCount() {
-        const clientHeight = this.$list.clientHeight;
-        return Math.ceil(clientHeight / this.itemHeight);
+        this.$listHolder.appendChild(this.view);
     }
 
     selectValue(value) {
@@ -175,7 +257,7 @@ class CeSelect extends HTMLElement {
             this.selectedValue = value;
             this.$selected.textContent = selectedItem.label;
             this.$dropdown.classList.remove("open");
-            this.dispatchEvent(new Event("change"));
+            this.dispatchEvent(new CustomEvent("change", { detail: { value } }));
         }
     }
 
