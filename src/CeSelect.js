@@ -1,3 +1,8 @@
+/**
+ * Recommended Extension for Visual Studio Code:
+ * https://marketplace.visualstudio.com/items?itemName=iuyoy.highlight-string-code
+ */
+
 const styles = `
     /* css */
     * {
@@ -153,15 +158,6 @@ class CeSelect extends HTMLElement {
         this.$selected.addEventListener("keydown", this.handleKeydown);
         this.$listHolder.addEventListener("scroll", this.handleScroll);
         this.$searchBar.addEventListener("input", this.handleSearch);
-
-        const close = (event) => {
-            if (!this.contains(event.target) && event.target !== this) {
-                this.handleSelectClick(true);
-                document.removeEventListener("click", close);
-            }
-        };
-
-        document.addEventListener("click", close);
     }
 
     disconnectedCallback() {
@@ -171,19 +167,34 @@ class CeSelect extends HTMLElement {
         this.$searchBar.removeEventListener("input", this.handleSearch);
     }
 
-    handleSelectClick(closeOnly = false) {
-        if (closeOnly) {
-            this.$dropdown.classList.remove("open");
-        } else {
-            this.$dropdown.classList.toggle("open");
-        }
-
+    handleSelectClick() {
         if (this.$dropdown.classList.contains("open")) {
-            this.refreshWindow();
+            this.close();
+        } else {
+            this.show();
         }
+    }
 
-        this.$listHolder.style.height = `${this.dropdownHeight - this.$searchBar.getBoundingClientRect().height}px`;
+    show() {
+        this.$dropdown.classList.add("open");
+
+        this.refreshWindow();
+
+        const selectedWidth = window.getComputedStyle(this.$selected).width;
+        const searchBarHeight = this.$searchBar.getBoundingClientRect().height;
+
+        this.$listHolder.style.height = `${this.dropdownHeight - searchBarHeight}px`;
         this.$dropdown.style.height = `${this.dropdownHeight}px`;
+        this.$dropdown.style.width = selectedWidth;
+    }
+
+    close() {
+        this.$dropdown.classList.remove("open");
+
+        this.$searchBar.value = "";
+        this.filteredData = this.data;
+
+        this.refreshWindow();
     }
 
     handleKeydown(event) {
@@ -198,7 +209,7 @@ class CeSelect extends HTMLElement {
             } else if (event.key === "Escape") {
                 event.preventDefault();
                 event.stopPropagation();
-                this.handleSelectClick(true);
+                this.close();
             }
         }
     }
@@ -210,7 +221,47 @@ class CeSelect extends HTMLElement {
 
     handleSearch(event) {
         const query = event.target.value.toLowerCase();
-        this.filteredData = this.data.filter((item) => item.label.toLowerCase().includes(query));
+
+        this.filteredData = this.data?.filter(({ label, value }) => {
+            function testStrings() {
+                let found = false;
+                for (let i = 0, stringsArray = [label, value]; i < stringsArray.length; i += 1) {
+                    if (
+                        // eg., "chicago manual of style 17th edition" => Chicago Manual of Style 17th edition
+                        stringsArray[i]?.toLowerCase().includes(query) ||
+                        // eg., "cmos17e" || "c m o s 1 7 e" => Chicago Manual of Style 17th edition
+                        stringsArray[i]
+                            ?.toLowerCase()
+                            .split(/\s+|-/)
+                            .map((sect) => {
+                                if (/\d/.test(sect)) return sect.replace(/\D/g, "");
+                                return sect[0];
+                            })
+                            .join("")
+                            .includes(query.replace(/\s+/g, "")) ||
+                        // eg., "cms17e" || "c m s 1 7 e" => Chicago Manual of Style 17th edition
+                        stringsArray[i]
+                            ?.toLowerCase()
+                            .replace(/\b(of|and|in|on|at|the|from|to|with|by|for|\(|\))\b/gi, "")
+                            .split(/\s+|-/)
+                            .map((sect) => {
+                                if (/\d/.test(sect)) return sect.replace(/\D/g, "");
+                                return sect[0];
+                            })
+                            .join("")
+                            .includes(query.replace(/\s+/g, ""))
+                    ) {
+                        found = true;
+                        break;
+                    }
+                }
+                return found;
+            }
+
+            if (query) return testStrings();
+            return true;
+        });
+
         this.$heightForcer.style.height = `${this.filteredData.length * this.itemHeight}px`;
         this.refreshWindow();
     }
@@ -242,9 +293,15 @@ class CeSelect extends HTMLElement {
             const div = document.createElement("div");
             div.className = "list-item";
             div.textContent = item.label;
+            div.title = item.label;
+            div.tabIndex = 0;
+            div.role = "button";
             div.style.height = `${this.itemHeight}px`;
             div.style.lineHeight = `${this.itemHeight}px`;
-            div.addEventListener("click", () => this.selectValue(item.value));
+            div.onclick = () => this.selectValue(item.value);
+            div.onkeydown = (event) => {
+                if (event.key === "Enter") div.onclick(event);
+            };
             this.view.appendChild(div);
         }
 

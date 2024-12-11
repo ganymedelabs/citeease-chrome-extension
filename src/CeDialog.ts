@@ -32,10 +32,10 @@ const styles = `
             "Open Sans",
             "Helvetica Neue",
             sans-serif;
+        padding: 20px;
         position: absolute;
         background: white;
         border-radius: 3px 20px 20px 20px;
-        padding: 20px;
         max-width: 400px;
         box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px #00000012, 0 2px 4px #00000012, 0 4px 8px #00000012,
             0 8px 16px #00000012, 0 16px 32px #00000012, 0 32px 64px #00000012;
@@ -102,20 +102,17 @@ const styles = `
     .dialog-content {
         display: flex;
         flex-direction: column;
-        margin: 0;
         gap: 10px;
+        margin: 0;
         padding-block: 10px;
         font-size: 14px;
         color: #333;
-        max-height: 300px;
-        overflow: auto;
     }
 
     .citation-container {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        overflow: auto;
+        gap: 4px;
     }
 
     .label {
@@ -144,6 +141,10 @@ const styles = `
 
     .select-container {
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+
     }
 
     .select-container label {
@@ -151,7 +152,6 @@ const styles = `
         font-size: 12px;
         font-weight: bold;
         color: #364f6b;
-        margin: 0 0 5px;
     }
 
     .select-container ce-select {
@@ -181,10 +181,15 @@ const citationStyles = `
     /* css */
     #reference,
     #intext {
-        all: unset;
-        margin: 4px;
+        z-index: 1000;
+        margin: 0;
         border-radius: 5px;
-        transition: background-color 0.2s ease-out;
+        transition: background-color 0.2s ease;
+    }
+
+    #reference:focus,
+    #intext:focus {
+        outline: 0px dotted transparent;
     }
 
     #reference:focus-visible,
@@ -198,7 +203,10 @@ const citationStyles = `
         background: #ededed;
     }
 
-    .loading,
+    .loading {
+        display: none;
+    }
+
     .error {
         font-family:
             system-ui,
@@ -212,10 +220,14 @@ const citationStyles = `
             "Open Sans",
             "Helvetica Neue",
             sans-serif;
+        color: white;
+        background: #e04b4b;
+        padding-inline: 5px;
     }
 
-    .loading {
+    :has(.loading) > .skeleton {
         display: inline-block;
+        border-radius: 5px;
         width: 100%;
         height: 1em;
         background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -223,10 +235,8 @@ const citationStyles = `
         animation: pulse 1.5s infinite ease-in-out;
     }
 
-    .error {
-        color: white;
-        background: #e04b4b;
-        padding-inline: 5px;
+    :has(.loading) > .skeleton:last-child {
+        width: 85%;
     }
 
     @keyframes pulse {
@@ -240,6 +250,11 @@ const citationStyles = `
 
     /* Citeproc Styles */
 
+    .csl-entry.hanging-indentation {
+        padding-inline-start: 1.5rem;
+        text-indent: -1.5rem;
+    }
+
     .csl-entry:has(.csl-left-margin) {
         display: flex;
         align-items: flex-start;
@@ -248,6 +263,10 @@ const citationStyles = `
 
     .csl-entry > .csl-left-margin {
         min-width: fit-content;
+    }
+
+    .csl-entry:has(.csl-block) > .csl-left-margin {
+        display: none;
     }
     /* !css */
 `;
@@ -354,8 +373,30 @@ class CeDialog extends HTMLElement {
         try {
             const [reference, intext] = await this.getCitation();
 
-            if (reference) {
-                referenceElement.innerHTML = reference;
+            if (reference && intext) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(reference, "text/html");
+
+                const cslEntry = doc.querySelector(".csl-entry") as HTMLDivElement;
+                const cslLeftMargins = doc.querySelectorAll(".csl-left-margin");
+                const style = this.styleSelect?.value || "";
+
+                cslLeftMargins.forEach((cslLeftMargin) => {
+                    const sibling = cslLeftMargin.previousElementSibling;
+                    if (sibling && sibling.classList.contains("csl-block")) {
+                        cslLeftMargin.remove();
+                    }
+                });
+
+                if (/^(apa|modern-language-association|chicago)/.test(style)) {
+                    cslEntry.classList.add("hanging-indentation");
+                } else {
+                    cslEntry.classList.remove("hanging-indentation");
+                }
+
+                const cleanedReference = doc.body.innerHTML;
+
+                referenceElement.innerHTML = cleanedReference;
                 intextElement.innerHTML = intext;
                 referenceElement.classList.remove("error", "loading");
                 intextElement.classList.remove("error", "loading");
@@ -450,27 +491,37 @@ class CeDialog extends HTMLElement {
 
         const referenceSlot = document.createElement("div");
         referenceSlot.slot = "reference";
-        referenceSlot.style.overflow = "visible";
         referenceSlot.innerHTML = `
             <!--html-->
             <style>${citationStyles}</style>
-            <button id="reference"></button>
+            <p id="reference" tabIndex="0" role="button"></p>
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
             <!--!html-->
         `;
 
         const intextSlot = document.createElement("div");
         intextSlot.slot = "intext";
-        intextSlot.style.overflow = "visible";
         intextSlot.innerHTML = `
             <!--html-->
             <style>${citationStyles}</style>
-            <button id="intext"></button>
+            <p id="intext" tabIndex="0" role="button"></p>
+            <div class="skeleton"></div>
             <!--!html-->
         `;
 
         this.append(titleSlot!, referenceSlot!, intextSlot!);
         this.referenceElement = referenceSlot?.querySelector("#reference") as HTMLElement;
         this.intextElement = intextSlot?.querySelector("#intext") as HTMLElement;
+
+        this.referenceElement.onkeydown = (event) => {
+            // @ts-expect-error
+            if (event.key === "Enter") this.referenceElement?.onclick(event);
+        };
+        this.intextElement.onkeydown = (event) => {
+            // @ts-expect-error
+            if (event.key === "Enter") this.intextElement?.onclick(event);
+        };
 
         if (targetElement) {
             const rect = targetElement.getBoundingClientRect();
