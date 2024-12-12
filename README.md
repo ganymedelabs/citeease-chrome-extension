@@ -19,7 +19,7 @@ CiteEase is a powerful, lightweight Chrome extension that simplifies the citatio
 - **Inline Citation Tool**: Displays a "Cite" button next to each highlighted element. Clicking this button opens a dialog with a reference list entry formatted in your preferred citation style with it's in-text citation.
 - **Page-Level Citation**: Use the extension's popup to generate citations for the webpage itself, complete with reference list entry and in-text citation.
 
-## ⚙️ Installation
+## 🔧 Installation
 
 1. Clone the repository or download the zip file:
     ```bash
