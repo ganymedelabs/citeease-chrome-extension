@@ -1,6 +1,12 @@
 type URLMessage = { type: string; [key: string]: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export function getURL(name: string): Promise<string | undefined> {
+export function getURL(name: string, url?: string): Promise<string | undefined> {
+    if (url && chrome.runtime) {
+        return new Promise((resolve) => {
+            resolve(chrome.runtime.getURL(url as string));
+        });
+    }
+
     return new Promise((resolve) => {
         window.postMessage({ type: "GET_URL" }, "*");
 
@@ -33,7 +39,11 @@ export function uid(length: number = 16): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function save(key: string, value: any): Promise<boolean> {
+export async function save(key: string, value: any): Promise<void> {
+    if (chrome.storage) {
+        return await chrome.storage.local.set({ [key]: value });
+    }
+
     return new Promise((resolve) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const event = new CustomEvent<{ action: string; key: string; value: any }>("FROM_INJECTED", {
@@ -45,7 +55,7 @@ export async function save(key: string, value: any): Promise<boolean> {
             const customEvent = event as CustomEvent<{ action: string; key: string; success: boolean }>;
             if (customEvent.detail.action === "SAVE" && customEvent.detail.key === key) {
                 window.removeEventListener("FROM_EXTENSION", handler);
-                resolve(customEvent.detail.success);
+                resolve();
             }
         };
 
@@ -54,7 +64,15 @@ export async function save(key: string, value: any): Promise<boolean> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function load(key: string): Promise<any> {
+export async function load<T>(key: string): Promise<T> {
+    if (chrome.storage) {
+        return new Promise((resolve) => {
+            chrome.storage.local.get([key], (result: Record<string, T>) => {
+                resolve(result[key]);
+            });
+        });
+    }
+
     return new Promise((resolve) => {
         const event = new CustomEvent<{ action: string; key: string }>("FROM_INJECTED", {
             detail: { action: "LOAD", key },

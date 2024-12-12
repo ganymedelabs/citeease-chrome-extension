@@ -26,7 +26,7 @@ type CacheEntry = {
     timestamp: number;
 };
 
-const localeCache: Record<string, string> = (await load("localeFiles")) || {};
+const localeCache: Record<string, string> = /* (await load("localeFiles")) || */ {};
 
 class CSLJsonParser {
     private cslJson: CSLJson[];
@@ -321,86 +321,72 @@ class CSLJsonParser {
         });
     }
 
-    async fromHTML(html: string, options: FromHTMLOptions): Promise<this> {
+    async fromHTML(html: string, options?: FromHTMLOptions): Promise<this> {
         /* eslint-disable quotes */
-        const { prioritizeIdentifiers = [], url, citeAsArticle = false } = options;
+        const { prioritizeIdentifiers = [], citeAsArticle = false } = options || {};
+        let { url } = options || {};
 
         const parser = new DOMParser();
         const document = parser.parseFromString(String(html), "text/html");
 
-        const extractContent = (
-            selector: string,
-            attr: string | undefined = undefined,
-            firstElementOnly = true
-        ): string | string[] | undefined => {
+        const extractContent = (selector: string, attr?: string, firstOnly = true): string | string[] | undefined => {
             const elements = document.querySelectorAll(selector);
-            const valuesArray = Array.from(elements).map((element) =>
-                attr ? element.getAttribute(attr) || "" : element.textContent || ""
+            const values = Array.from(elements).map((el) =>
+                attr ? el.getAttribute(attr) || "" : el.textContent || ""
             );
-
-            if (valuesArray.length === 0) return undefined;
-            return firstElementOnly ? valuesArray[0] : valuesArray;
+            return values.length === 0 ? undefined : firstOnly ? values[0] : values;
         };
 
+        if (!url) {
+            url = (extractContent('meta[property="og:url"]', "content") as string) || "";
+        }
+
         const getAvailableIdentifiers = () => {
-            let pmidMatch;
-            let pmcidMatch;
-            let doiMatch;
+            let pmid, pmcid, doi;
 
-            if ((url as string).startsWith("https://pubmed.ncbi.nlm.nih.gov")) {
+            if (url.startsWith("https://pubmed.ncbi.nlm.nih.gov")) {
                 const keywords = extractContent('meta[name="keywords"]', "content") as string;
-
-                pmidMatch = keywords.match(/pmid:\d+/);
-                pmcidMatch = keywords.match(/PMC\d+/);
-                doiMatch = keywords.match(/doi:[^,]+/);
+                pmid = keywords.match(/pmid:\d+/)?.[0]?.replace("pmid:", "");
+                pmcid = keywords.match(/PMC\d+/)?.[0];
+                doi = keywords.match(/doi:[^,]+/)?.[0]?.replace("doi:", "");
             }
 
             const doiMetas = ['meta[name="publication_doi"]', 'meta[name="citation_doi"]', 'meta[name="wkhealth_doi"]'];
-
             const pmidMetas = ['meta[name="citation_pmid"]', 'meta[name="ncbi_uid"]'];
 
-            const doi =
-                extractContent(doiMetas.join(", "), "content") ||
-                (doiMatch && doiMatch[0] ? doiMatch[0].replace("doi:", "") : undefined);
-
-            const pmid =
-                extractContent(pmidMetas.join(", "), "content") ||
-                (pmidMatch && pmidMatch[0] ? pmidMatch[0].replace("pmid:", "") : undefined);
-
-            const pmcid = pmcidMatch && pmcidMatch[0] ? pmcidMatch[0] : undefined;
+            doi = doi || (extractContent(doiMetas.join(", "), "content") as string);
+            pmid = pmid || (extractContent(pmidMetas.join(", "), "content") as string);
 
             return { doi, pmid, pmcid };
         };
 
+        /* eslint-disable indent */
         if (prioritizeIdentifiers.length) {
-            const { doi, pmid, pmcid } = getAvailableIdentifiers() as Record<string, string>;
-
-            /* eslint-disable indent */
-            for (let i = 0; i < prioritizeIdentifiers.length; i += 1) {
-                switch (prioritizeIdentifiers[i]) {
+            const { doi, pmid, pmcid } = getAvailableIdentifiers();
+            for (const identifier of prioritizeIdentifiers) {
+                switch (identifier) {
                     case "DOI":
                         if (doi) return await this.fromDOI(doi);
-                        continue;
+                        break;
                     case "PMID":
                         if (pmid) return await this.fromPMID(pmid);
-                        continue;
+                        break;
                     case "PMCID":
                         if (pmcid) return await this.fromPMCID(pmcid);
-                        continue;
+                        break;
                     default:
-                        continue;
+                        break;
                 }
             }
-            /* eslint-enable indent */
         }
+        /* eslint-enable indent */
 
-        let newCslJsonObject: CSLJson;
-        const contentType = extractContent(
-            'meta[name="citation_article_type"], meta[property="og:type"], meta[name="dc.type"]',
-            "content"
-        ) as string;
+        const createArticleCslJson = () => {
+            const contentType = extractContent(
+                'meta[name="citation_article_type"], meta[property="og:type"], meta[name="dc.type"]',
+                "content"
+            ) as string;
 
-        if (citeAsArticle || /(article|Article)/.test(contentType)) {
             const firstPage = parseInt(
                 extractContent(
                     'meta[name="citation_first_page"], meta[name="wkhealth_first_page"], meta[name="prism.startingPage"]',
@@ -413,12 +399,13 @@ class CSLJsonParser {
                     "content"
                 ) as string
             );
+
             const authorsArray =
                 extractContent('meta[name="citation_author"]', "content", false) ||
                 (extractContent('meta[name="wkhealth_authors"]', "content") as string).split(";") ||
                 extractContent('meta[name="dc.creator"]', "content", false);
 
-            newCslJsonObject = {
+            return {
                 id: uid(),
                 type: contentType || "article",
                 DOI: (
@@ -428,10 +415,10 @@ class CSLJsonParser {
                     ) as string
                 ).replace("doi:", ""),
                 URL:
-                    (extractContent(
+                    extractContent(
                         'meta[name="citation_fulltext_html_url"], meta[name="wkhealth_fulltext_html_url"], meta[name="prism.url"]',
                         "content"
-                    ) as string) || url,
+                    ) || url,
                 ISSN: [extractContent('meta[name="citation_issn"], meta[name="wkhealth_issn"]', "content") as string],
                 "container-title": extractContent(
                     'meta[name="citation_journal_title"], meta[name="wkhealth_journal_title"], meta[name="prism.issn"]',
@@ -463,13 +450,21 @@ class CSLJsonParser {
                 accessed: this.createDateObject(new Date()),
                 author: this.createAuthorsArray(authorsArray as string[]),
             };
+        };
+
+        let newCslJsonObject: CSLJson;
+        const contentType = extractContent(
+            'meta[name="citation_article_type"], meta[property="og:type"], meta[name="dc.type"]',
+            "content"
+        ) as string;
+
+        if (citeAsArticle || /(article|Article)/.test(contentType)) {
+            newCslJsonObject = createArticleCslJson() as CSLJson;
         } else {
             newCslJsonObject = {
                 id: uid(),
                 type: "webpage",
-                title:
-                    (extractContent("title") as string) ||
-                    (extractContent('meta[property="og:title"]', "content") as string),
+                title: (extractContent("title") || extractContent('meta[property="og:title"]', "content")) as string,
                 author: this.createAuthorsArray(
                     extractContent('meta[name="author"], meta[name="article:author"]', "content", false) as string[]
                 ),
@@ -480,15 +475,14 @@ class CSLJsonParser {
                 publisher: extractContent('meta[property="article:publisher"]', "content") as string,
                 accessed: this.createDateObject(new Date()),
                 issued: this.createDateObject(new Date(extractContent('meta[name="date"]', "content") as string)),
-                URL: (extractContent('meta[property="og:url"]', "content") as string) || url,
+                URL: url,
             };
         }
 
         this.cslJson.push(newCslJsonObject);
         return this;
-
-        /* eslint-enable quotes */
     }
+    /* eslint-enable quotes */
 
     async fromURL(url: string): Promise<this> {
         return this.retryWithDelay(async () => {

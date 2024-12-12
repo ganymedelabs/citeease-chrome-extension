@@ -111,17 +111,43 @@ const styles = `
     }
 
     .list-item:focus {
-        outline: 2px solid #364f6b;
+        outline: 0 solid transparent;
+        background: rgb(64, 194, 201);
     }
     /* !css */
 `;
 
+type SelectOption = {
+    label: string;
+    value: string;
+};
+
+declare global {
+    interface HTMLElementTagNameMap {
+        "ce-select": CeSelect;
+    }
+}
+
 class CeSelect extends HTMLElement {
+    private data: SelectOption[] = [];
+    private filteredData: SelectOption[] = [];
+    private dropdownHeight: number = 200;
+    private itemHeight: number = 35;
+    private buffer: number = 5;
+    private selectedValue: string | null = null;
+    private $selected: HTMLElement;
+    private $dropdown: HTMLElement;
+    private $searchBar: HTMLInputElement;
+    private $listHolder: HTMLElement;
+    private $heightForcer: HTMLElement;
+    private view: HTMLElement | null = null;
+    private scrollTimeout: number | undefined;
+
     constructor() {
         super();
 
         this.attachShadow({ mode: "open" });
-        this.shadowRoot.innerHTML = `
+        this.shadowRoot!.innerHTML = `
             <!--html-->
             <style>${styles}</style>
             <div class="selected" tabindex="0">Select an option</div>
@@ -134,18 +160,11 @@ class CeSelect extends HTMLElement {
             <!--!html-->
         `;
 
-        this.data = [];
-        this.filteredData = [];
-        this.dropdownHeight = 200;
-        this.itemHeight = 35;
-        this.buffer = 5;
-        this.selectedValue = null;
-        this.$selected = this.shadowRoot.querySelector(".selected");
-        this.$dropdown = this.shadowRoot.querySelector(".dropdown");
-        this.$searchBar = this.shadowRoot.querySelector(".search-bar");
-        this.$listHolder = this.shadowRoot.querySelector(".list-holder");
-        this.$heightForcer = this.shadowRoot.querySelector(".heightForcer");
-        this.view = null;
+        this.$selected = this.shadowRoot!.querySelector<HTMLElement>(".selected")!;
+        this.$dropdown = this.shadowRoot!.querySelector<HTMLElement>(".dropdown")!;
+        this.$searchBar = this.shadowRoot!.querySelector<HTMLInputElement>(".search-bar")!;
+        this.$listHolder = this.shadowRoot!.querySelector<HTMLElement>(".list-holder")!;
+        this.$heightForcer = this.shadowRoot!.querySelector<HTMLElement>(".heightForcer")!;
 
         this.handleSelectClick = this.handleSelectClick.bind(this);
         this.handleKeydown = this.handleKeydown.bind(this);
@@ -153,21 +172,23 @@ class CeSelect extends HTMLElement {
         this.handleSearch = this.handleSearch.bind(this);
     }
 
-    connectedCallback() {
-        this.$selected.addEventListener("click", () => this.handleSelectClick());
+    connectedCallback(): void {
+        this.$selected.addEventListener("click", this.handleSelectClick);
         this.$selected.addEventListener("keydown", this.handleKeydown);
         this.$listHolder.addEventListener("scroll", this.handleScroll);
         this.$searchBar.addEventListener("input", this.handleSearch);
+        this.$searchBar.addEventListener("keydown", this.handleKeydown);
     }
 
-    disconnectedCallback() {
-        this.$selected.removeEventListener("click", () => this.handleSelectClick());
+    disconnectedCallback(): void {
+        this.$selected.removeEventListener("click", this.handleSelectClick);
         this.$selected.removeEventListener("keydown", this.handleKeydown);
         this.$listHolder.removeEventListener("scroll", this.handleScroll);
         this.$searchBar.removeEventListener("input", this.handleSearch);
+        this.$searchBar.removeEventListener("keydown", this.handleKeydown);
     }
 
-    handleSelectClick() {
+    private handleSelectClick(): void {
         if (this.$dropdown.classList.contains("open")) {
             this.close();
         } else {
@@ -175,38 +196,40 @@ class CeSelect extends HTMLElement {
         }
     }
 
-    show() {
+    private show(): void {
         this.$dropdown.classList.add("open");
-
         this.refreshWindow();
 
-        const selectedWidth = window.getComputedStyle(this.$selected).width;
+        const selectedStyles = window.getComputedStyle(this.$selected);
+        const selectedWidth = parseInt(selectedStyles.width);
+        const selectedHeight = parseInt(selectedStyles.height);
         const searchBarHeight = this.$searchBar.getBoundingClientRect().height;
 
         this.$listHolder.style.height = `${this.dropdownHeight - searchBarHeight}px`;
         this.$dropdown.style.height = `${this.dropdownHeight}px`;
-        this.$dropdown.style.width = selectedWidth;
+        this.$dropdown.style.width = `${selectedWidth}px`;
+        this.$dropdown.style.transform = `translateY(-${this.dropdownHeight + selectedHeight}px)`;
     }
 
-    close() {
+    private close(): void {
         this.$dropdown.classList.remove("open");
-
         this.$searchBar.value = "";
         this.filteredData = this.data;
-
         this.refreshWindow();
     }
 
-    handleKeydown(event) {
-        if (event.key === "Enter" || event.key === " ") {
+    private handleKeydown(event: Event): void {
+        const keyboardEvent = event as KeyboardEvent;
+
+        if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
             event.preventDefault();
             event.stopPropagation();
             this.handleSelectClick();
         } else if (this.$dropdown.classList.contains("open")) {
-            if (/^[\p{L}\p{N}]$/u.test(event.key)) {
+            if (/^[\p{L}\p{N}]$/u.test(keyboardEvent.key)) {
                 this.$searchBar.focus();
-                this.handleSearch({ target: this.$searchBar });
-            } else if (event.key === "Escape") {
+                this.handleSearch(event);
+            } else if (keyboardEvent.key === "Escape") {
                 event.preventDefault();
                 event.stopPropagation();
                 this.close();
@@ -214,66 +237,51 @@ class CeSelect extends HTMLElement {
         }
     }
 
-    handleScroll() {
+    private handleScroll(): void {
         clearTimeout(this.scrollTimeout);
-        this.scrollTimeout = setTimeout(() => this.refreshWindow(), 10);
+        this.scrollTimeout = window.setTimeout(() => this.refreshWindow(), 10);
     }
 
-    handleSearch(event) {
-        const query = event.target.value.toLowerCase();
+    private handleSearch(event: Event): void {
+        const query = (event.target as HTMLInputElement).value?.toLowerCase();
 
-        this.filteredData = this.data?.filter(({ label, value }) => {
-            function testStrings() {
-                let found = false;
-                for (let i = 0, stringsArray = [label, value]; i < stringsArray.length; i += 1) {
-                    if (
-                        // eg., "chicago manual of style 17th edition" => Chicago Manual of Style 17th edition
-                        stringsArray[i]?.toLowerCase().includes(query) ||
-                        // eg., "cmos17e" || "c m o s 1 7 e" => Chicago Manual of Style 17th edition
-                        stringsArray[i]
-                            ?.toLowerCase()
+        this.filteredData = this.data.filter(({ label, value }) => {
+            const testStrings = () => {
+                const stringsArray = [label, value];
+                return stringsArray.some((str) => {
+                    if (!str) return false;
+                    return (
+                        str.toLowerCase().includes(query) ||
+                        str
+                            .toLowerCase()
                             .split(/\s+|-/)
-                            .map((sect) => {
-                                if (/\d/.test(sect)) return sect.replace(/\D/g, "");
-                                return sect[0];
-                            })
+                            .map((sect) => (/\d/.test(sect) ? sect.replace(/\D/g, "") : sect[0]))
                             .join("")
                             .includes(query.replace(/\s+/g, "")) ||
-                        // eg., "cms17e" || "c m s 1 7 e" => Chicago Manual of Style 17th edition
-                        stringsArray[i]
-                            ?.toLowerCase()
-                            .replace(/\b(of|and|in|on|at|the|from|to|with|by|for|\(|\))\b/gi, "")
-                            .split(/\s+|-/)
-                            .map((sect) => {
-                                if (/\d/.test(sect)) return sect.replace(/\D/g, "");
-                                return sect[0];
-                            })
+                        str
+                            .toLowerCase()
+                            .split(/\s+/)
+                            .map((word) => word[0])
                             .join("")
-                            .includes(query.replace(/\s+/g, ""))
-                    ) {
-                        found = true;
-                        break;
-                    }
-                }
-                return found;
-            }
-
-            if (query) return testStrings();
-            return true;
+                            .includes(query)
+                    );
+                });
+            };
+            return query ? testStrings() : true;
         });
 
         this.$heightForcer.style.height = `${this.filteredData.length * this.itemHeight}px`;
         this.refreshWindow();
     }
 
-    populate(items) {
+    public populate(items: SelectOption[]): void {
         this.data = items;
         this.filteredData = items;
         this.$heightForcer.style.height = `${this.data.length * this.itemHeight}px`;
         this.refreshWindow();
     }
 
-    refreshWindow() {
+    private refreshWindow(): void {
         if (this.view) this.$listHolder.removeChild(this.view);
 
         this.view = document.createElement("div");
@@ -295,12 +303,12 @@ class CeSelect extends HTMLElement {
             div.textContent = item.label;
             div.title = item.label;
             div.tabIndex = 0;
-            div.role = "button";
+            div.setAttribute("role", "button");
             div.style.height = `${this.itemHeight}px`;
             div.style.lineHeight = `${this.itemHeight}px`;
             div.onclick = () => this.selectValue(item.value);
             div.onkeydown = (event) => {
-                if (event.key === "Enter") div.onclick(event);
+                if (event.key === "Enter") div.onclick!(new MouseEvent("click"));
             };
             this.view.appendChild(div);
         }
@@ -308,7 +316,7 @@ class CeSelect extends HTMLElement {
         this.$listHolder.appendChild(this.view);
     }
 
-    selectValue(value) {
+    private selectValue(value: string): void {
         const selectedItem = this.data.find((item) => item.value === value);
         if (selectedItem) {
             this.selectedValue = value;
@@ -318,11 +326,11 @@ class CeSelect extends HTMLElement {
         }
     }
 
-    set value(newValue) {
-        this.selectValue(newValue);
+    set value(newValue: string | null) {
+        if (newValue !== null) this.selectValue(newValue);
     }
 
-    get value() {
+    get value(): string | null {
         return this.selectedValue;
     }
 }

@@ -4,37 +4,20 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>CiteEase</title>
-        <meta name="description" content="" />
-        <link rel="stylesheet" href="popup.css" />
+        <meta
+            name="description"
+            content="CiteEase is a Chrome extension that simplifies citations by automatically detecting URLs, DOIs, PMIDs, PMCIDs, and ISBNs on webpages, and generating citations in your preferred style."
+        />
+        <style>
+            body {
+                margin: 0;
+                padding: 20px;
+                max-width: 400px;
+            }
+        </style>
     </head>
-
     <body>
-        <div class="dialog-header"><div id="title"></div></div>
-
-        <div class="dialog-content">
-            <div class="citation-container">
-                <h4 class="label">
-                    Reference list entry <span class="copied-feedback" id="reference-feedback"></span>
-                </h4>
-                <p id="reference"></p>
-            </div>
-            <div class="citation-container">
-                <h4 class="label">In-text citation <span class="copied-feedback" id="intext-feedback"></span></h4>
-                <p id="intext"></p>
-            </div>
-        </div>
-
-        <div class="dialog-options">
-            <div class="select-container">
-                <label for="style-select">Style:</label>
-                <ce-select id="style-select"></ce-select>
-            </div>
-            <div class="select-container">
-                <label for="locale-select">Locale:</label>
-                <ce-select id="locale-select"></ce-select>
-            </div>
-        </div>
-
+        <ce-dialog></ce-dialog>
         <script src="popup.bundle.js"></script>
     </body>
 </html>

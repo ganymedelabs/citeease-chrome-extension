@@ -18,14 +18,13 @@ const styles = `
         cursor: pointer;
         text-align: center;
         pointer-events: auto;
-        box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000015, 0 2px 4px #00000015;
+        box-shadow: 0 1px 2px #00000015, 0 2px 4px #00000015;
         transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out;
     }
 
     :host(:hover) {
         background: #eee;
-        box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000020, 0 2px 4px #00000020,
-            0 4px 8px #00000020;
+        box-shadow: 0 1px 2px #00000020, 0 2px 4px #00000020, 0 4px 8px #00000020;
     }
 
     img {
@@ -48,34 +47,52 @@ class CeButton extends HTMLElement {
         super();
         this.attachShadow({ mode: "open" });
 
-        const style = document.createElement("style");
-        style.innerHTML = styles;
-
-        const buttonIcon = document.createElement("img");
-        buttonIcon.alt = "Icon by Pikselan (https://www.freepik.com/icon/science_15060166)";
-        getURL("icon").then((url: string | undefined) => (buttonIcon.src = url!));
-
         const shadow = this.shadowRoot as ShadowRoot;
 
-        shadow.append(style, buttonIcon);
+        const styleElement = document.createElement("style");
+        styleElement.textContent = styles;
 
-        this.addEventListener("click", (event: MouseEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const openDialog = document.querySelector("ce-dialog");
-            if (openDialog) openDialog.remove();
-
-            const identifierType = this.getAttribute("data-type") as string;
-            const identifierValue = this.getAttribute("data-value") as string;
-
-            const dialog = document.createElement("ce-dialog");
-            dialog.show({
-                dataValue: identifierValue,
-                dataType: identifierType,
-                targetElement: event.target as HTMLElement,
-            });
+        const iconElement = document.createElement("img");
+        iconElement.alt = "Icon by Pikselan (https://www.freepik.com/icon/science_15060166)";
+        getURL("icon").then((url: string | undefined) => {
+            if (url) iconElement.src = url;
         });
+
+        shadow.append(styleElement, iconElement);
+
+        this.addEventListener("click", this.handleClick.bind(this));
+    }
+
+    private handleClick(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const existingDialog = document.querySelector("ce-dialog");
+        if (existingDialog) existingDialog.remove();
+
+        const identifierType = this.getAttribute("data-type") || "";
+        const identifierValue = this.getAttribute("data-value") || "";
+
+        const dialog = document.createElement("ce-dialog");
+        dialog.type = identifierType;
+        dialog.value = identifierValue;
+        dialog.floating = true;
+
+        const rect = (event.target as HTMLElement).getBoundingClientRect();
+        dialog.style.top = `${rect.bottom + window.scrollY}px`;
+        dialog.style.left = `${rect.left + window.scrollX}px`;
+        dialog.style.borderTopLeftRadius = "3px";
+
+        document.documentElement.append(dialog);
+
+        const closeDialog = (event: Event) => {
+            if (!dialog.contains(event.target as Node) && event.target !== dialog) {
+                dialog.remove();
+                document.removeEventListener("click", closeDialog);
+            }
+        };
+
+        document.addEventListener("click", closeDialog);
     }
 }
 

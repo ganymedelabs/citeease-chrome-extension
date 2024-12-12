@@ -1,14 +1,16 @@
 {
     "name": "citeease-chrome-extension",
+    "description": "CiteEase is a Chrome extension that simplifies citations by automatically detecting URLs, DOIs, PMIDs, PMCIDs, and ISBNs on webpages, and generating citations in your preferred style.",
     "version": "1.0.0",
-    "main": "popup.js",
+    "main": "popup.ts",
+    "type": "commonjs",
     "scripts": {
         "build": "webpack",
         "start": "webpack serve --open",
         "test": "echo \"Error: no test specified\" && exit 1",
         "lint": "eslint .",
         "lint:fix": "eslint --fix .",
-        "format": "prettier --write \"./**/*.{js,ts,json}\""
+        "format": "prettier --write \"./**/*.{js,ts,json,html,css}\""
     },
     "keywords": [
         "chrome-extension",
@@ -28,9 +30,8 @@
         "csl",
         "citation-style-language"
     ],
-    "author": "ganyemedelabs",
+    "author": "ganemedelabs",
     "license": "MIT",
-    "description": "",
     "devDependencies": {
         "@eslint/compat": "^1.2.3",
         "@eslint/eslintrc": "^3.2.0",

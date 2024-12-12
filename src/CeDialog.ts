@@ -7,8 +7,6 @@ import CSLJsonParser from "./CSLJsonParser";
 import { getURL, load, save } from "./utils";
 import "./CeSelect";
 
-type ShowOptions = { dataType?: string; dataValue?: string; targetElement?: HTMLElement };
-
 const styles = `
     /* css */
     * {
@@ -32,22 +30,18 @@ const styles = `
             "Open Sans",
             "Helvetica Neue",
             sans-serif;
-        padding: 20px;
+        position: relative;
+    }
+
+    :host(.floating) {
         position: absolute;
-        background: white;
-        border-radius: 3px 20px 20px 20px;
+        background: #fff;
         max-width: 400px;
+        padding: 20px;
+        border-radius: 20px;
         box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px #00000012, 0 2px 4px #00000012, 0 4px 8px #00000012,
             0 8px 16px #00000012, 0 16px 32px #00000012, 0 32px 64px #00000012;
         z-index: 1000;
-        opacity: 1;
-        transform: scale(1);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    :host(.hidden) {
-        opacity: 0;
-        transform: scale(0.95);
     }
 
     /* Dialog Header Styles */
@@ -62,7 +56,7 @@ const styles = `
         margin-bottom: 10px;
     }
 
-    ::slotted([slot="title"]) {
+    #title {
         font-size: 20px;
         font-weight: bold;
         color: #333;
@@ -122,66 +116,13 @@ const styles = `
         color: #364f6b;
     }
 
-    ::slotted([slot="reference"]),
-    ::slotted([slot="intext"]) {
+    #reference,
+    #intext {
         font-family: Georgia, "Times New Roman", Times, serif;
         text-align: start;
         line-height: 20px;
         margin-block: 0;
         border-radius: 5px;
-    }
-
-    /* Dialog Options Styles */
-
-    .dialog-options {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-    }
-
-    .select-container {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-
-    }
-
-    .select-container label {
-        display: block;
-        font-size: 12px;
-        font-weight: bold;
-        color: #364f6b;
-    }
-
-    .select-container ce-select {
-        width: 100%;
-    }
-
-    /* Copied Feedback */
-
-    .copied-feedback {
-        position: relative;
-        right: 10px;
-        opacity: 0;
-        color: #35c46e;
-        font-size: 12px;
-        transition: right 0.5s ease, opacity 0.5s ease;
-    }
-
-    .copied-feedback.show {
-        position: relative;
-        opacity: 1;
-        right: 0px;
-    }
-    /* !css */
-`;
-
-const citationStyles = `
-    /* css */
-    #reference,
-    #intext {
-        z-index: 1000;
         margin: 0;
         border-radius: 5px;
         transition: background-color 0.2s ease;
@@ -248,6 +189,50 @@ const citationStyles = `
         }
     }
 
+    /* Dialog Options Styles */
+
+    .dialog-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .select-container {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+
+    }
+
+    .select-container label {
+        display: block;
+        font-size: 12px;
+        font-weight: bold;
+        color: #364f6b;
+    }
+
+    .select-container ce-select {
+        width: 100%;
+    }
+
+    /* Copied Feedback */
+
+    .copied-feedback {
+        position: relative;
+        right: 10px;
+        opacity: 0;
+        color: #35c46e;
+        font-size: 12px;
+        transition: right 0.5s ease, opacity 0.5s ease;
+    }
+
+    .copied-feedback.show {
+        position: relative;
+        opacity: 1;
+        right: 0px;
+    }
+
     /* Citeproc Styles */
 
     .csl-entry.hanging-indentation {
@@ -282,6 +267,11 @@ class CeDialog extends HTMLElement {
     private localeSelect: HTMLSelectElement | undefined;
     private referenceElement: HTMLElement | undefined;
     private intextElement: HTMLElement | undefined;
+    private titleElement: HTMLElement | undefined;
+
+    private _type: string = "";
+    private _value: string = "";
+    private _floating: boolean = false;
 
     constructor() {
         super();
@@ -291,17 +281,19 @@ class CeDialog extends HTMLElement {
             <!--html-->
             <style>${styles}</style>
             <div class="dialog-header">
-                <slot name="title"></slot>
-                <button class="close-button">×</button>
+                <div id="title"></div>
             </div>
             <div class="dialog-content">
                 <div class="citation-container">
                     <h4 class="label">Reference list entry <span class="copied-feedback" id="reference-feedback"></span></h4>
-                    <slot name="reference"></slot>
+                    <p id="reference" tabIndex="0" role="button"></p>
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
                 </div>
                 <div class="citation-container">
                     <h4 class="label">In-text citation <span class="copied-feedback" id="intext-feedback"></span></h4>
-                    <slot name="intext"></slot>
+                    <p id="intext" tabIndex="0" role="button"></p>
+                    <div class="skeleton"></div>
                 </div>
             </div>
             <div class="dialog-options">
@@ -321,13 +313,53 @@ class CeDialog extends HTMLElement {
 
         shadow.innerHTML = template;
 
-        const closeButton = shadow.querySelector(".close-button") as HTMLButtonElement;
-        closeButton.addEventListener("click", () => this.close());
+        this.titleElement = shadow.querySelector("#title") as HTMLDivElement;
+        this.referenceElement = shadow.querySelector("#reference") as HTMLParagraphElement;
+        this.intextElement = shadow.querySelector("#intext") as HTMLParagraphElement;
     }
 
-    private async getCitation() {
-        const type = this.getAttribute("data-type") as string;
-        const value = this.getAttribute("data-value") as string;
+    async connectedCallback() {
+        const localesURL = await getURL("locales", "json/locales.json");
+        const stylesURL = await getURL("styles", "json/styles.json");
+        const styles: { code: string; name: { long: string } }[] = await fetch(stylesURL!).then((res) => res.json());
+        const locales: { code: string; name: { english: string } }[] = await fetch(localesURL!).then((res) =>
+            res.json()
+        );
+
+        const selectElements = this.shadowRoot?.querySelectorAll("ce-select");
+        const styleSelect = Array.from(selectElements!).find((element) => element.id === "style-select");
+        const localeSelect = Array.from(selectElements!).find((element) => element.id === "locale-select");
+
+        styleSelect?.populate(
+            styles.map((style) => ({
+                value: style.code,
+                label: style.name.long,
+            }))
+        );
+
+        localeSelect?.populate(
+            locales.map((locale) => ({
+                value: locale.code,
+                label: locale.name.english,
+            }))
+        );
+
+        load("style").then((savedStyle) => {
+            if (savedStyle) {
+                (this.styleSelect as HTMLSelectElement).value = savedStyle as string;
+            }
+        });
+
+        load("locale").then((savedLocale) => {
+            if (savedLocale) {
+                (this.localeSelect as HTMLSelectElement).value = savedLocale as string;
+            }
+        });
+    }
+
+    private async getCitation(style: string, locale: string) {
+        const value = this._value;
+        const type = this._type;
 
         /* eslint-disable indent */
         const parser = new CSLJsonParser();
@@ -347,11 +379,10 @@ class CeDialog extends HTMLElement {
             case "ISBN":
                 await parser.fromISBN(value);
                 break;
+            case "HTML":
+                await parser.fromHTML(value, { prioritizeIdentifiers: ["DOI", "PMID", "PMCID"] });
         }
         /* eslint-enable indent */
-
-        const style = this.styleSelect?.value || "apa";
-        const locale = this.localeSelect?.value || "en-US";
 
         return await parser.toBibliography({ style, locale });
     }
@@ -370,8 +401,13 @@ class CeDialog extends HTMLElement {
         referenceElement.onclick = () => undefined;
         intextElement.onclick = () => undefined;
 
+        const style = this.styleSelect?.value;
+        const locale = this.localeSelect?.value;
+
+        if (!style || !locale) return;
+
         try {
-            const [reference, intext] = await this.getCitation();
+            const [reference, intext] = await this.getCitation(style, locale);
 
             if (reference && intext) {
                 const parser = new DOMParser();
@@ -435,102 +471,26 @@ class CeDialog extends HTMLElement {
         }
     }
 
-    async connectedCallback() {
-        const localesURL = await getURL("locales");
-        const stylesURL = await getURL("styles");
-        const styles: { code: string; name: { long: string } }[] = await fetch(stylesURL!).then((res) => res.json());
-        const locales: { code: string; name: { english: string } }[] = await fetch(localesURL!).then((res) =>
-            res.json()
-        );
+    private updateContent() {
+        const type = this.type;
+        const value = this.value;
+        const dataType = this.getAttribute("data-type");
+        const dataValue = this.getAttribute("data-value");
 
-        const selectElements = this.shadowRoot?.querySelectorAll("ce-select");
-        const styleSelect = Array.from(selectElements!).find((element) => element.id === "style-select");
-        const localeSelect = Array.from(selectElements!).find((element) => element.id === "locale-select");
+        this.titleElement!.textContent = `${dataType === "HTML" ? "" : dataType || type + ": "}${dataValue || value}`;
 
-        // @ts-expect-error
-        styleSelect?.populate(
-            styles.map((style) => ({
-                value: style.code,
-                label: style.name.long,
-            }))
-        );
-        // @ts-expect-error
-        localeSelect?.populate(
-            locales.map((locale) => ({
-                value: locale.code,
-                label: locale.name.english,
-            }))
-        );
-
-        load("style").then((savedStyle: string) => {
-            if (savedStyle) (this.styleSelect as HTMLSelectElement).value = savedStyle;
-        });
-        load("locale").then((savedLocale: string) => {
-            if (savedLocale) (this.localeSelect as HTMLSelectElement).value = savedLocale;
-        });
-
-        const closeDialog = (event: Event) => {
-            if (!this.contains(event.target as Node) && event.target !== this) {
-                this.close();
-                document.removeEventListener("click", closeDialog);
-            }
-        };
-
-        document.addEventListener("click", closeDialog);
-    }
-
-    show(options: ShowOptions) {
-        const { dataType, dataValue, targetElement } = options;
-
-        this.setAttribute("data-type", dataType!);
-        this.setAttribute("data-value", dataValue!);
-
-        const titleSlot = document.createElement("div");
-        titleSlot.slot = "title";
-        titleSlot.textContent = `${dataType}: ${dataValue}`;
-
-        const referenceSlot = document.createElement("div");
-        referenceSlot.slot = "reference";
-        referenceSlot.innerHTML = `
-            <!--html-->
-            <style>${citationStyles}</style>
-            <p id="reference" tabIndex="0" role="button"></p>
-            <div class="skeleton"></div>
-            <div class="skeleton"></div>
-            <!--!html-->
-        `;
-
-        const intextSlot = document.createElement("div");
-        intextSlot.slot = "intext";
-        intextSlot.innerHTML = `
-            <!--html-->
-            <style>${citationStyles}</style>
-            <p id="intext" tabIndex="0" role="button"></p>
-            <div class="skeleton"></div>
-            <!--!html-->
-        `;
-
-        this.append(titleSlot!, referenceSlot!, intextSlot!);
-        this.referenceElement = referenceSlot?.querySelector("#reference") as HTMLElement;
-        this.intextElement = intextSlot?.querySelector("#intext") as HTMLElement;
-
-        this.referenceElement.onkeydown = (event) => {
+        this.referenceElement!.onkeydown = (event) => {
             // @ts-expect-error
             if (event.key === "Enter") this.referenceElement?.onclick(event);
         };
-        this.intextElement.onkeydown = (event) => {
+
+        this.intextElement!.onkeydown = (event) => {
             // @ts-expect-error
             if (event.key === "Enter") this.intextElement?.onclick(event);
         };
 
-        if (targetElement) {
-            const rect = targetElement.getBoundingClientRect();
-            this.style.top = `${rect.bottom + window.scrollY}px`;
-            this.style.left = `${rect.left + window.scrollX}px`;
-        }
-
-        this.styleSelect = this.shadowRoot?.getElementById("style-select") as HTMLSelectElement;
-        this.localeSelect = this.shadowRoot?.getElementById("locale-select") as HTMLSelectElement;
+        this.styleSelect = this.shadowRoot?.querySelector("#style-select") as HTMLSelectElement;
+        this.localeSelect = this.shadowRoot?.querySelector("#locale-select") as HTMLSelectElement;
 
         this.styleSelect.addEventListener("change", () => {
             this.updateDialog();
@@ -541,14 +501,51 @@ class CeDialog extends HTMLElement {
             save("locale", this.localeSelect?.value);
         });
 
-        this.updateDialog();
-        document.documentElement.append(this);
-        this.classList.remove("hidden");
+        if (type.length && value.length) this.updateDialog();
     }
 
-    close() {
-        this.classList.add("hidden");
-        setTimeout(() => this.remove(), 200);
+    set type(newType: string) {
+        this._type = newType;
+        this.setAttribute("type", newType);
+        this.updateContent();
+    }
+
+    get type(): string {
+        return this._type;
+    }
+
+    set value(newValue: string) {
+        this._value = newValue;
+        this.setAttribute("value", newValue);
+        this.updateContent();
+    }
+
+    get value(): string {
+        return this._value;
+    }
+
+    set floating(newValue: boolean) {
+        this._floating = newValue;
+
+        if (this._floating) {
+            this.classList.add("floating");
+
+            const closeButton = document.createElement("button");
+            closeButton.textContent = "×";
+            closeButton.className = "close-button";
+            closeButton.addEventListener("click", () => this.remove());
+
+            const dialogHeader = this.shadowRoot?.querySelector(".dialog-header");
+            dialogHeader?.appendChild(closeButton);
+        } else {
+            this.classList.remove("floating");
+            const closeButton = this.shadowRoot?.querySelector(".close-button");
+            if (closeButton) closeButton.remove();
+        }
+    }
+
+    get floating(): boolean {
+        return this._floating;
     }
 }
 
