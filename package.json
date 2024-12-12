@@ -12,6 +12,14 @@
         "lint:fix": "eslint --fix .",
         "format": "prettier --write \"./**/*.{js,ts,json,html,css}\""
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ganemedelabs/citeease-chrome-extension.git"
+    },
+    "bugs": {
+        "url": "https://github.com/ganemedelabs/citeease-chrome-extension/issues"
+    },
+    "homepage": "https://github.com/ganemedelabs/citeease-chrome-extension#readme",
     "keywords": [
         "chrome-extension",
         "citation",
