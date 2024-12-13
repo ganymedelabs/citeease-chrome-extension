@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "CiteEase",
-    "author": "ganymedelabs",
+    "author": "ganemedelabs",
     "version": "1.0.0",
     "description": "Automatically detects URLs, DOIs, PMIDs, PMCIDs, and ISBNs on webpages, and generates citations in your preferred style.",
     "permissions": ["scripting", "activeTab", "storage", "tabs"],
