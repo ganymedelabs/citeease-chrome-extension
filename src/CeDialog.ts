@@ -144,11 +144,13 @@ const styles = `
         background: #ededed;
     }
 
-    .loading {
+    #reference.loading,
+    #intext.loading {
         display: none;
     }
 
-    .error {
+    #reference.error,
+    #intext.error {
         font-family:
             system-ui,
             -apple-system,
@@ -347,12 +349,16 @@ class CeDialog extends HTMLElement {
         load("style").then((savedStyle) => {
             if (savedStyle) {
                 (this.styleSelect as HTMLSelectElement).value = savedStyle as string;
+            } else {
+                (this.styleSelect as HTMLSelectElement).value = "apa";
             }
         });
 
         load("locale").then((savedLocale) => {
             if (savedLocale) {
                 (this.localeSelect as HTMLSelectElement).value = savedLocale as string;
+            } else {
+                (this.localeSelect as HTMLSelectElement).value = "en-US";
             }
         });
     }

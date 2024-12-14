@@ -26,7 +26,7 @@ type CacheEntry = {
     timestamp: number;
 };
 
-const localeCache: Record<string, string> = /* (await load("localeFiles")) || */ {};
+const localeCache: Record<string, string> = (await load("localeFiles")) || {};
 
 class CSLJsonParser {
     private cslJson: CSLJson[];
@@ -197,7 +197,7 @@ class CSLJsonParser {
     async fromDOI(doi: string): Promise<this> {
         return this.retryWithDelay(async () => {
             const response = await this.fetchWithCache(
-                `${this.CORS_PROXY}https://api.crossref.org/works/${doi}`,
+                `https://api.crossref.org/works/${doi}`,
                 this.options.includeCache?.includes("cslJson") ? "cslJson" : undefined
             );
             const data = await response.json();
