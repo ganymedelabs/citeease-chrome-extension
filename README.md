@@ -32,7 +32,7 @@ CiteEase is a powerful, lightweight Chrome extension that simplifies the citatio
 
 ## 🌐 Data Sources
 
-`citeease-cli` uses the following free APIs to retrieve citation data:
+CiteEase uses the following free APIs to retrieve citation data:
 
 - [CrossRef](https://www.crossref.org/documentation/retrieve-metadata/rest-api/): For DOI-based data, e.g., `https://api.crossref.org/works/<DOI>`
 - [Open Library](https://openlibrary.org/developers/api): For ISBN-based data, e.g., `https://openlibrary.org/search.json?q=isbn:<ISBN>&mode=everything&fields=*,editions`
