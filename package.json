@@ -1,7 +1,7 @@
 {
     "name": "citeease-chrome-extension",
     "description": "CiteEase is a Chrome extension that simplifies citations by automatically detecting URLs, DOIs, PMIDs, PMCIDs, and ISBNs on webpages, and generating citations in your preferred style.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "main": "popup.ts",
     "type": "commonjs",
     "scripts": {

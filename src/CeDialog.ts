@@ -44,6 +44,10 @@ const styles = `
         z-index: 1000;
     }
 
+    abbr {
+        text-decoration: none;
+    }
+
     /* Dialog Header Styles */
 
     .dialog-header {
@@ -320,7 +324,7 @@ class CeDialog extends HTMLElement {
         this.intextElement = shadow.querySelector("#intext") as HTMLParagraphElement;
     }
 
-    async connectedCallback() {
+    async connectedCallback(): Promise<void> {
         const localesURL = await getURL("locales", "json/locales.json");
         const stylesURL = await getURL("styles", "json/styles.json");
         const styles: { code: string; name: { long: string } }[] = await fetch(stylesURL!).then((res) => res.json());
@@ -363,7 +367,7 @@ class CeDialog extends HTMLElement {
         });
     }
 
-    private async getCitation(style: string, locale: string) {
+    private async getCitation(style: string, locale: string): Promise<[string, string]> {
         const value = this._value;
         const type = this._type;
 
@@ -393,7 +397,7 @@ class CeDialog extends HTMLElement {
         return await parser.toBibliography({ style, locale });
     }
 
-    private async updateDialog() {
+    private async updateDialog(): Promise<void> {
         const referenceElement = this.referenceElement as HTMLElement;
         const intextElement = this.intextElement as HTMLElement;
         const shadow = this.shadowRoot as ShadowRoot;
@@ -477,13 +481,24 @@ class CeDialog extends HTMLElement {
         }
     }
 
-    private updateContent() {
+    private updateContent(): void {
         const type = this.type;
         const value = this.value;
         const dataType = this.getAttribute("data-type");
         const dataValue = this.getAttribute("data-value");
 
-        this.titleElement!.textContent = `${dataType === "HTML" ? "" : dataType || type + ": "}${dataValue || value}`;
+        const typeAbbreviation: Record<string, string> = {
+            DOI: "Digital Object Identifier",
+            URL: "Uniform Resource Locator",
+            PMCID: "PubMed Central Identifier",
+            PMID: "PubMed Identifier",
+            ISBN: "International Standard Book Number",
+        };
+
+        const selectedType = dataType || type;
+
+        this.titleElement!.innerHTML = `${dataType === "HTML" ? "" : `<abbr title="${typeAbbreviation[selectedType]}">${selectedType}</abbr>` + ": "}${dataValue || value}`;
+        this.titleElement!.title = dataValue || value;
 
         this.referenceElement!.onkeydown = (event) => {
             // @ts-expect-error

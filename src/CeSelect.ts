@@ -221,7 +221,7 @@ class CeSelect extends HTMLElement {
     private handleKeydown(event: Event): void {
         const keyboardEvent = event as KeyboardEvent;
 
-        if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+        if (keyboardEvent.key === "Enter") {
             event.preventDefault();
             event.stopPropagation();
             this.handleSelectClick();

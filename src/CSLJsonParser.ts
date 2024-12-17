@@ -48,16 +48,15 @@ class CSLJsonParser {
         return [...this.cslJson];
     }
 
-    private async fetchWithCache(url: string, storageKey?: string): Promise<Response> {
+    private async fetchWithCache(url: string, storageKey?: string, fetchOptions?: RequestInit): Promise<Response> {
         if (!storageKey) {
-            return await fetch(url);
+            return await fetch(url, fetchOptions);
         }
 
         const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
         const now = Date.now();
 
         const cache: Record<string, CacheEntry> = (await load(storageKey)) || {};
-
         const cachedEntry = cache[url];
 
         if (cachedEntry) {
@@ -65,6 +64,13 @@ class CSLJsonParser {
             const isOffline = !navigator.onLine;
 
             if (!isOlderThanWeek || isOffline) {
+                if (!cachedEntry.data) {
+                    console.warn("Cached entry has empty data. Ignoring cache.");
+                    delete cache[url];
+                    await save(storageKey, cache);
+                    return await fetch(url, fetchOptions);
+                }
+
                 return new Response(cachedEntry.data, {
                     headers: new Headers(cachedEntry.headers),
                     status: cachedEntry.status,
@@ -73,10 +79,20 @@ class CSLJsonParser {
             }
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, fetchOptions);
         const responseClone = response.clone();
 
-        const data = await responseClone.text();
+        let data: string;
+        try {
+            data = await responseClone.text();
+
+            if (!data) {
+                throw new Error("Empty response body");
+            }
+        } catch (error) {
+            console.error("Failed to fetch response data:", error);
+            throw new Error("Error retrieving response body");
+        }
 
         const headersArray: [string, string][] = [];
         responseClone.headers.forEach((value, key) => {
@@ -147,6 +163,7 @@ class CSLJsonParser {
     }
 
     private createAuthorsArray(authors: string[]): AuthorsArray {
+        if (!Array.isArray(authors)) return [];
         return authors.map((author) => {
             const names = author.split(/\s+/);
             const given = names.shift() || "";
@@ -454,11 +471,11 @@ class CSLJsonParser {
 
         let newCslJsonObject: CSLJson;
         const contentType = extractContent(
-            'meta[name="citation_article_type"], meta[property="og:type"], meta[name="dc.type"]',
+            'meta[name="citation_article_type"], meta[property="og:type"], meta[name="dc.type"], meta[name="prism.section"]',
             "content"
         ) as string;
 
-        if (citeAsArticle || /(article|Article)/.test(contentType)) {
+        if (citeAsArticle || /(Article|ReviewPaper)/i.test(contentType)) {
             newCslJsonObject = createArticleCslJson() as CSLJson;
         } else {
             newCslJsonObject = {
@@ -485,14 +502,17 @@ class CSLJsonParser {
     /* eslint-enable quotes */
 
     async fromURL(url: string): Promise<this> {
+        const secureUrl = url.startsWith("http://") ? url.replace("http://", "https://") : url;
+
         return this.retryWithDelay(async () => {
             const response = await this.fetchWithCache(
-                `${this.CORS_PROXY}${url}`,
-                this.options.includeCache?.includes("cslJson") ? "cslJson" : undefined
+                secureUrl,
+                this.options.includeCache?.includes("cslJson") ? "cslJson" : undefined,
+                { mode: "no-cors" }
             );
             const text = await response.json();
 
-            await this.fromHTML(text, { url });
+            await this.fromHTML(text, { url: secureUrl });
 
             return this;
         });
