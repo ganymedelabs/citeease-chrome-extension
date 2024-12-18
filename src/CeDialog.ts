@@ -8,39 +8,54 @@ import { getURL, load, save } from "./utils";
 import "./CeSelect";
 
 const styles = `
-    /* css */
+    /* css */    
+    :host {
+        --color-primary: #364f6b;
+        --color-secondary: #333;
+        --color-background: #fff;
+        --color-border: #e0e0e0;
+        --color-error: #e04b4b;
+        --color-success: #35c46e;
+        --color-hover: #ededed;
+        --color-hover-shadow: #00000020;
+        --color-shadow: #00000012;
+
+        --font-family-base: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        --font-family-serif: Georgia, "Times New Roman", Times, serif;
+
+        --font-size-small: 12px;
+        --font-size-base: 14px;
+        --font-size-large: 20px;
+
+        --radius-small: 5px;
+        --radius-large: 20px;
+
+        --shadow-layer: 0 0 #0000, 0 0 #0000, 0 1px 2px var(--color-shadow), 0 2px 4px var(--color-shadow), 0 4px 8px var(--color-shadow), 0 8px 16px var(--color-shadow), 0 16px 32px var(--color-shadow), 0 32px 64px var(--color-shadow);
+        --shadow-layer-sm: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px var(--color-shadow), 0 2px 4px var(--color-shadow);
+        --shadow-layer-sm-hover: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px var(--color-hover-shadow), 0 2px 4px var(--color-hover-shadow), 0 4px 8px var(--color-hover-shadow);
+
+        --transition-fast: 0.2s ease;
+        --transition-medium: 0.5s ease;
+
+        font-family: var(--font-family-base);
+        position: relative;
+    }
+
     * {
         box-sizing: border-box;
     }
 
     *:focus-visible {
-        outline: 2px solid #364f6b;
-    }
-
-    :host {
-        font-family:
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            Roboto,
-            Oxygen,
-            Ubuntu,
-            Cantarell,
-            "Open Sans",
-            "Helvetica Neue",
-            sans-serif;
-        position: relative;
+        outline: 2px solid var(--color-primary);
     }
 
     :host(.floating) {
         position: absolute;
-        background: #fff;
+        background: var(--color-background);
         max-width: 400px;
         padding: 20px;
-        border-radius: 20px;
-        box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px #00000012, 0 2px 4px #00000012, 0 4px 8px #00000012,
-            0 8px 16px #00000012, 0 16px 32px #00000012, 0 32px 64px #00000012;
+        border-radius: var(--radius-large);
+        box-shadow: var(--shadow-layer);
         z-index: 1000;
     }
 
@@ -55,15 +70,15 @@ const styles = `
         justify-content: space-between;
         align-items: center;
         gap: 10px;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid var(--color-border);
         padding-bottom: 10px;
         margin-bottom: 10px;
     }
 
     #title {
-        font-size: 20px;
+        font-size: var(--font-size-large);
         font-weight: bold;
-        color: #333;
+        color: var(--color-secondary);
         margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -85,14 +100,13 @@ const styles = `
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000015, 0 2px 4px #00000015;
-        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: var(--shadow-layer-sm);
+        transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
     }
 
     .close-button:hover {
-        background: #e04b4b;
-        box-shadow: 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 0 #0000, 0 1px 2px #00000020, 0 2px 4px #00000020,
-            0 4px 8px #00000020;
+        background: var(--color-error);
+        box-shadow: var(--shadow-layer-sm-hover);
     }
 
     /* Dialog Content Styles */
@@ -103,8 +117,8 @@ const styles = `
         gap: 10px;
         margin: 0;
         padding-block: 10px;
-        font-size: 14px;
-        color: #333;
+        font-size: var(--font-size-base);
+        color: var(--color-secondary);
     }
 
     .citation-container {
@@ -115,21 +129,19 @@ const styles = `
 
     .label {
         position: relative;
-        font-size: 12px;
+        font-size: var(--font-size-small);
         margin: 0;
-        color: #364f6b;
+        color: var(--color-primary);
     }
 
     #reference,
     #intext {
-        font-family: Georgia, "Times New Roman", Times, serif;
+        font-family: var(--font-family-serif);
         text-align: start;
         line-height: 20px;
         margin-block: 0;
-        border-radius: 5px;
-        margin: 0;
-        border-radius: 5px;
-        transition: background-color 0.2s ease;
+        border-radius: var(--radius-small);
+        transition: background-color var(--transition-fast);
     }
 
     #reference:focus,
@@ -145,7 +157,7 @@ const styles = `
 
     #reference:not(.loading):not(.error):hover,
     #intext:not(.loading):not(.error):hover {
-        background: #ededed;
+        background: var(--color-hover);
     }
 
     #reference.loading,
@@ -155,26 +167,15 @@ const styles = `
 
     #reference.error,
     #intext.error {
-        font-family:
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            Roboto,
-            Oxygen,
-            Ubuntu,
-            Cantarell,
-            "Open Sans",
-            "Helvetica Neue",
-            sans-serif;
+        font-family: var(--font-family-base);
         color: white;
-        background: #e04b4b;
+        background: var(--color-error);
         padding-inline: 5px;
     }
 
     :has(.loading) > .skeleton {
         display: inline-block;
-        border-radius: 5px;
+        border-radius: var(--radius-small);
         width: 100%;
         height: 1em;
         background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -208,14 +209,13 @@ const styles = `
         display: flex;
         flex-direction: column;
         gap: 5px;
-
     }
 
     .select-container label {
         display: block;
-        font-size: 12px;
+        font-size: var(--font-size-small);
         font-weight: bold;
-        color: #364f6b;
+        color: var(--color-primary);
     }
 
     .select-container ce-select {
@@ -228,9 +228,9 @@ const styles = `
         position: relative;
         right: 10px;
         opacity: 0;
-        color: #35c46e;
-        font-size: 12px;
-        transition: right 0.5s ease, opacity 0.5s ease;
+        color: var(--color-success);
+        font-size: var(--font-size-small);
+        transition: right var(--transition-medium), opacity var(--transition-medium);
     }
 
     .copied-feedback.show {
@@ -324,7 +324,11 @@ class CeDialog extends HTMLElement {
         this.intextElement = shadow.querySelector("#intext") as HTMLParagraphElement;
     }
 
-    async connectedCallback(): Promise<void> {
+    connectedCallback() {
+        this.init();
+    }
+
+    private async init(): Promise<void> {
         const localesURL = await getURL("locales", "json/locales.json");
         const stylesURL = await getURL("styles", "json/styles.json");
         const styles: { code: string; name: { long: string } }[] = await fetch(stylesURL!).then((res) => res.json());

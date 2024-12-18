@@ -8,31 +8,42 @@ import { getURL } from "./utils";
 const styles = `
     /* css */
     :host {
+        --color-background: white;
+        --color-hover: #eee;
+        --shadow-layer: 0 1px 2px #00000015, 0 2px 4px #00000015;
+        --shadow-layer-hover: 0 1px 2px #00000020, 0 2px 4px #00000020, 0 4px 8px #00000020;
+        --radius-small: 3px;
+        --size-small: 16px;
+        --size-max: calc(var(--size-small) + (var(--spacing-tiny) * 2));
+        --spacing-small: 5px;
+        --spacing-tiny: 2px;
+        --transition-fast: 0.2s ease;
+
         user-select: none;
         display: flex;
-        alignItems: center;
-        max-height: 20px;
-        max-width: 20px;
-        margin-left: 5px;
-        padding: 2px;
-        background: white;
+        align-items: center;
+        max-height: var(--size-max);
+        max-width: var(--size-max);
+        margin-left: var(--spacing-small);
+        padding: var(--spacing-tiny);
+        background: var(--color-background);
         border: none;
-        border-radius: 3px;
+        border-radius: var(--radius-small);
         cursor: pointer;
         pointer-events: auto;
-        box-shadow: 0 1px 2px #00000015, 0 2px 4px #00000015;
-        transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out;
+        box-shadow: var(--shadow-layer);
+        transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
     }
 
     :host(:hover) {
-        background: #eee;
-        box-shadow: 0 1px 2px #00000020, 0 2px 4px #00000020, 0 4px 8px #00000020;
+        background: var(--color-hover);
+        box-shadow: var(--shadow-layer-hover);
     }
 
     img {
         display: block;
-        width: 16px;
-        height: 16px;
+        width: var(--size-small);
+        height: var(--size-small);
         margin: auto;
     }
     /* !css */

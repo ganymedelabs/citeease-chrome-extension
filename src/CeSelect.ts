@@ -5,14 +5,34 @@
 
 const styles = `
     /* css */
-    * {
-        box-sizing: border-box;
-    }
-
     :host {
+        --color-primary: #364f6b;
+        --color-secondary: #333;
+        --color-background: #f9f9f9;
+        --color-border: #ddd;
+        --color-hover: #ededed;
+        --color-focus: rgb(64, 194, 201);
+        --color-dropdown-background: #f9f9f9;
+        --color-caret: var(--color-primary);
+        --color-shadow: #00000012;
+
+        --size-small: 8px;
+        --size-medium: 14px;
+        --size-list-item-padding: 10px;
+        --size-border-radius: 5px;
+        --max-dropdown-height: 200px;
+
+        --shadow-layer: 0 0 #0000, 0 0 #0000, 0 1px 2px var(--color-shadow), 0 2px 4px var(--color-shadow), 0 4px 8px var(--color-shadow), 0 8px 16px var(--color-shadow), 0 16px 32px var(--color-shadow), 0 32px 64px var(--color-shadow);
+
+        --transition-fast: 0.2s ease;
+
         display: inline-block;
         position: relative;
         max-width: 100%;
+    }
+
+    * {
+        box-sizing: border-box;
     }
 
     /* Display Styles */
@@ -20,30 +40,30 @@ const styles = `
     .selected {
         user-select: none;
         display: block;
-        padding: 8px;
-        font-size: 14px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
+        padding: var(--size-small);
+        font-size: var(--size-medium);
+        border: 1px solid var(--color-border);
+        border-radius: var(--size-border-radius);
         cursor: pointer;
-        color: #333;
-        background: #f9f9f9;
+        color: var(--color-secondary);
+        background: var(--color-background);
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--transition-fast);
     }
 
     .selected:hover {
-        background: #ededed;
+        background: var(--color-hover);
     }
 
     .selected:focus-visible {
-        outline: 2px solid #364f6b;
+        outline: 2px solid var(--color-primary);
     }
 
     :host:has(.dropdown.open) > .selected {
-        background: #f9f9f9;
-        outline: 2px solid #364f6b;
+        background: var(--color-background);
+        outline: 2px solid var(--color-primary);
     }
 
     /* Dropdown Styles */
@@ -52,13 +72,12 @@ const styles = `
         position: absolute;
         top: 100%;
         right: 0;
-        border-radius: 5px;
-        background: #f9f9f9;
-        max-height: 200px;
+        border-radius: var(--size-border-radius);
+        background: var(--color-dropdown-background);
+        max-height: var(--max-dropdown-height);
         overflow: hidden;
         display: none;
-        box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px #00000012, 0 2px 4px #00000012, 0 4px 8px #00000012,
-            0 8px 16px #00000012, 0 16px 32px #00000012, 0 32px 64px #00000012;
+        box-shadow: var(--shadow-layer)
     }
 
     .dropdown.open {
@@ -68,19 +87,19 @@ const styles = `
     /* Search Bar Styles */
 
     .search-bar {
-        caret-color: #364f6b;
+        caret-color: var(--color-caret);
         position: sticky;
         top: 0;
-        padding: 10px;
+        padding: var(--size-small);
         width: 100%;
-        border: 2px solid #ddd;
-        border-radius: 5px;
-        background: #f9f9f9;
+        border: 2px solid var(--color-border);
+        border-radius: var(--size-border-radius);
+        background: var(--color-background);
         z-index: 10;
     }
 
     .search-bar:focus {
-        border: 2px solid #364f6b;
+        border: 2px solid var(--color-primary);
         outline: none;
     }
 
@@ -95,24 +114,24 @@ const styles = `
 
     .list-item {
         user-select: none;
-        font-size: 12px;
+        font-size: calc(var(--size-medium) - 2px);
         position: relative;
         right: 0;
-        padding-inline: 10px;
+        padding-inline: var(--size-list-item-padding);
         cursor: pointer;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--transition-fast);
     }
 
     .list-item:hover {
-        background: #ededed;
+        background: var(--color-hover);
     }
 
     .list-item:focus {
         outline: 0 solid transparent;
-        background: rgb(64, 194, 201);
+        background: var(--color-focus);
     }
     /* !css */
 `;
