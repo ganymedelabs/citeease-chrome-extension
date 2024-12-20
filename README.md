@@ -1,5 +1,9 @@
 # CiteEase Chrome Extension
 
+![Code size](https://custom-icon-badges.demolab.com/github/languages/code-size/ganymedelabs/citeease-chrome-extension?logo=file-code&logoColor=white)
+![JavaScript](https://custom-icon-badges.demolab.com/badge/JavaScript-Vanilla-F7DF1E.svg?logo=javascript&logoColor=white)
+![License](https://custom-icon-badges.demolab.com/github/license/ganymedelabs/citeease-chrome-extension?logo=law)
+
 CiteEase is a powerful, lightweight Chrome extension that simplifies the citation process for researchers, students, and professionals. It automatically highlights citation-worthy elements such as URLs, DOIs, PMIDs, PMCIDs, and ISBNs on the current webpage and provides an easy-to-use citation tool.
 
 ![Screenshot](static/images/screenshot.png)
