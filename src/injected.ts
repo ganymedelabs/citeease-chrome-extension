@@ -1,16 +1,17 @@
 import "./CeDialog";
 import "./CeButton";
+import "./CeSHC";
 
-function addCEButtons(): void {
-    const identifierPatterns: Record<string, RegExp> = {
-        DOI: /((https?:\/\/)?(?:dx\.)?doi\.org\/)?10\.[-._;()/:a-zA-Z0-9]+(?<!\.)/,
-        URL: /(https?:\/\/)[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+(?<!\.)/,
-        PMCID: /PMC\d+/,
-        PMID: /\d{7,10}/,
-        ISBN: /(97[89])(-?\d+){4}(-?\d|X)/,
-    };
+const identifierPatterns: Record<string, RegExp> = {
+    DOI: /((https?:\/\/)?(?:dx\.)?doi\.org\/)?10\.\d{4,9}\/[-._;()/:a-zA-Z0-9]+(?<!\.)/,
+    URL: /(https?:\/\/)[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+(?<!\.)/,
+    PMCID: /PMC\d+/i,
+    PMID: /(?<!\p{L})\d{7,10}(?!\p{L})/u,
+    ISBN: /(97[89])(-?\d+){4}(-?\d|X)/,
+};
 
-    function processNode(node: Node): void {
+async function processNode(node: Node): Promise<void> {
+    return new Promise((resolve) => {
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.nodeValue?.trim() || "";
             let modified = false;
@@ -44,6 +45,8 @@ function addCEButtons(): void {
                     wrapper.appendChild(button);
                     fragment.appendChild(wrapper);
 
+                    setTimeout(() => scrollHighlightContainer.addHighlight(wrapper));
+
                     remainingText = afterMatch;
                     modified = true;
                 }
@@ -71,12 +74,17 @@ function addCEButtons(): void {
                 "HR",
             ];
             if (!excludedTags.includes((node as HTMLElement).tagName)) {
-                Array.from(node.childNodes).forEach(processNode);
+                for (const childNode of Array.from(node.childNodes)) {
+                    processNode(childNode);
+                }
             }
         }
-    }
 
-    processNode(document.body);
+        resolve(undefined);
+    });
 }
 
-setTimeout(addCEButtons, 1000);
+const scrollHighlightContainer = document.createElement("ce-shc");
+document.documentElement.appendChild(scrollHighlightContainer);
+
+setTimeout(() => processNode(document.body), 1000);

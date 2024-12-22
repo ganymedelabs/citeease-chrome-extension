@@ -164,9 +164,11 @@ class CeSelect extends HTMLElement {
 
     constructor() {
         super();
-
         this.attachShadow({ mode: "open" });
-        this.shadowRoot!.innerHTML = `
+
+        const shadow = this.shadowRoot as ShadowRoot;
+
+        shadow.innerHTML = `
             <!--html-->
             <style>${styles}</style>
             <div class="selected" tabindex="0">Select an option</div>

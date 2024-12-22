@@ -5,7 +5,7 @@
     "version": "1.0.1",
     "description": "Automatically detects URLs, DOIs, PMIDs, PMCIDs, and ISBNs on webpages, and generates citations in your preferred style.",
     "permissions": ["scripting", "activeTab", "storage", "tabs"],
-    "host_permissions": ["<all_urls>"],
+    "host_permissions": ["http://*/*", "https://*/*"],
     "action": {
         "default_title": "CiteEase",
         "default_popup": "popup.html"
@@ -15,7 +15,7 @@
     },
     "content_scripts": [
         {
-            "matches": ["<all_urls>"],
+            "matches": ["http://*/*", "https://*/*"],
             "js": ["content.bundle.js"],
             "run_at": "document_start"
         }
@@ -29,7 +29,7 @@
                 "json/styles.json",
                 "json/locales.json"
             ],
-            "matches": ["<all_urls>"]
+            "matches": ["http://*/*", "https://*/*"]
         }
     ],
     "icons": { "16": "images/icon-16.png", "48": "images/icon-48.png", "128": "images/icon-128.png" }

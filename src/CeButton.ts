@@ -60,16 +60,14 @@ class CeButton extends HTMLElement {
         super();
         this.attachShadow({ mode: "open" });
 
-        const template = `
+        const shadow = this.shadowRoot as ShadowRoot;
+
+        shadow.innerHTML = `
             <!--html-->
             <style>${styles}</style>
             <img alt="Icon by Pikselan (https://www.freepik.com/icon/science_15060166)" />
             <!--!html-->
         `;
-
-        const shadow = this.shadowRoot as ShadowRoot;
-
-        shadow.innerHTML = template;
 
         getURL("icon").then((url: string | undefined) => {
             const iconElement = shadow.querySelector("img");

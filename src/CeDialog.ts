@@ -283,7 +283,9 @@ class CeDialog extends HTMLElement {
         super();
         this.attachShadow({ mode: "open" });
 
-        const template = `
+        const shadow = this.shadowRoot as ShadowRoot;
+
+        shadow.innerHTML = `
             <!--html-->
             <style>${styles}</style>
             <div class="dialog-header">
@@ -314,10 +316,6 @@ class CeDialog extends HTMLElement {
             </div>
             <!--!html-->
         `;
-
-        const shadow = this.shadowRoot as ShadowRoot;
-
-        shadow.innerHTML = template;
 
         this.titleElement = shadow.querySelector("#title") as HTMLDivElement;
         this.referenceElement = shadow.querySelector("#reference") as HTMLParagraphElement;

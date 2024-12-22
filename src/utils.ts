@@ -63,7 +63,6 @@ export async function save(key: string, value: any): Promise<void> {
     });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function load<T>(key: string): Promise<T> {
     if (chrome.storage) {
         return new Promise((resolve) => {
