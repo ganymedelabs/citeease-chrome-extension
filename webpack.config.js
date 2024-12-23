@@ -26,6 +26,9 @@ module.exports = {
     },
     resolve: {
         extensions: [".ts", ".js"],
+        alias: {
+            xmlhttprequest: false,
+        },
     },
     plugins: [
         new CopyWebpackPlugin({

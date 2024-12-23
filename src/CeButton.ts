@@ -77,14 +77,17 @@ class CeButton extends HTMLElement {
         });
 
         this.handleClick = this.handleClick.bind(this);
+        this.handleClickOutside = this.handleClickOutside.bind(this);
     }
 
     connectedCallback(): void {
         this.addEventListener("click", this.handleClick);
+        document.addEventListener("click", this.handleClickOutside);
     }
 
     disconnectedCallback(): void {
         this.removeEventListener("click", this.handleClick);
+        document.removeEventListener("click", this.handleClickOutside);
     }
 
     private handleClick(event: MouseEvent): void {
@@ -108,15 +111,13 @@ class CeButton extends HTMLElement {
         dialog.style.borderTopLeftRadius = "3px";
 
         document.documentElement.append(dialog);
+    }
 
-        const closeDialog = (event: Event) => {
-            if (!dialog.contains(event.target as Node) && event.target !== dialog) {
-                dialog.remove();
-                document.removeEventListener("click", closeDialog);
-            }
-        };
-
-        document.addEventListener("click", closeDialog);
+    private handleClickOutside(event: Event) {
+        const dialog = document.querySelector("ce-dialog");
+        if (dialog && !dialog.contains(event.target as Node) && event.target !== dialog) {
+            dialog.remove();
+        }
     }
 }
 

@@ -18,6 +18,8 @@ type ToBibliographyOptions = {
 
 type FromHTMLOptions = { prioritizeIdentifiers?: string[]; url?: string; citeAsArticle?: boolean };
 
+type FromURLOptions = { useProxy?: boolean; corsProxy?: string };
+
 type CacheEntry = {
     data: string;
     headers: [string, string][];
@@ -26,12 +28,34 @@ type CacheEntry = {
     timestamp: number;
 };
 
+export const getXMLHttpRequest = async (): Promise<typeof XMLHttpRequest | null> => {
+    if (typeof window !== "undefined" && window.XMLHttpRequest) {
+        return new window.XMLHttpRequest();
+    } else if (
+        typeof global !== "undefined" &&
+        typeof process !== "undefined" &&
+        process.versions &&
+        process.versions.node
+    ) {
+        try {
+            const { XMLHttpRequest } = await require("xmlhttprequest");
+            return new XMLHttpRequest();
+        } catch {
+            console.warn("Failed to load 'xmlhttprequest' module in Node.js environment.");
+            return null;
+        }
+    }
+    console.warn("Unable to determine environment or XMLHttpRequest is not available.");
+    return null;
+};
+
+const XMLHttpRequest = (await getXMLHttpRequest()) as XMLHttpRequest;
+
 const localeCache: Record<string, string> = (await load("localeFiles")) || {};
 
 class CSLJsonParser {
     private cslJson: CSLJson[];
     private options: Options;
-    private CORS_PROXY = "https://corsproxy.io/?";
 
     constructor(cslJson?: CSLJson[], options?: Options) {
         this.cslJson = cslJson || [];
@@ -139,7 +163,7 @@ class CSLJsonParser {
             return localeCache[lang];
         }
 
-        const xhr = new XMLHttpRequest();
+        const xhr = XMLHttpRequest;
         xhr.open(
             "GET",
             `https://raw.githubusercontent.com/citation-style-language/locales/master/locales-${lang}.xml`,
@@ -501,20 +525,68 @@ class CSLJsonParser {
     }
     /* eslint-enable quotes */
 
-    async fromURL(url: string): Promise<this> {
+    async fromURL(url: string, options: FromURLOptions = { corsProxy: "https://corsproxy.io/?" }): Promise<this> {
         const secureUrl = url.startsWith("http://") ? url.replace("http://", "https://") : url;
+
+        const cleanHtml = (html: string): string => {
+            const tagsToRemove = [
+                "script",
+                "style",
+                "noscript",
+                "link",
+                "svg",
+                "path",
+                "rect",
+                "circle",
+                "img",
+                "input",
+                "textarea",
+                "br",
+                "hr",
+            ];
+
+            tagsToRemove.forEach((tag) => {
+                const pairedTagRegex = new RegExp(`<${tag}[^>]*?>.*?<\\/${tag}>`, "gis");
+                html = html.replace(pairedTagRegex, "");
+
+                const selfClosingTagRegex = new RegExp(`<${tag}[^>]*?\\s*/?>`, "gis");
+                html = html.replace(selfClosingTagRegex, "");
+            });
+
+            const commentRegex = /<!--[\s\S]*?-->/g;
+            html = html.replace(commentRegex, "");
+
+            html = html.replace(/>\s+</g, "><");
+            html = html.replace(/\s+/g, " ");
+            html = html.trim();
+
+            return html;
+        };
 
         return this.retryWithDelay(async () => {
             const response = await this.fetchWithCache(
-                secureUrl,
+                `${options.useProxy ? options.corsProxy : ""}secureUrl`,
                 this.options.includeCache?.includes("cslJson") ? "cslJson" : undefined,
                 { mode: "no-cors" }
             );
-            const text = await response.json();
 
-            await this.fromHTML(text, { url: secureUrl });
+            try {
+                const html = await response.json();
 
-            return this;
+                const cleanedHtml = cleanHtml(html);
+
+                await this.fromHTML(cleanedHtml, { url: secureUrl });
+                return this;
+            } catch (error) {
+                console.error(error as Error);
+                const newCslJsonObject = {
+                    id: uid(),
+                    URL: url,
+                    accessed: this.createDateObject(new Date()),
+                };
+                this.cslJson.push(newCslJsonObject);
+                return this;
+            }
         });
     }
 

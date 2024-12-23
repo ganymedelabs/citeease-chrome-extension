@@ -191,6 +191,7 @@ class CeSelect extends HTMLElement {
         this.handleKeydown = this.handleKeydown.bind(this);
         this.handleScroll = this.handleScroll.bind(this);
         this.handleSearch = this.handleSearch.bind(this);
+        this.handleClickOutside = this.handleClickOutside.bind(this);
     }
 
     connectedCallback(): void {
@@ -199,6 +200,8 @@ class CeSelect extends HTMLElement {
         this.$listHolder.addEventListener("scroll", this.handleScroll);
         this.$searchBar.addEventListener("input", this.handleSearch);
         this.$searchBar.addEventListener("keydown", this.handleKeydown);
+
+        document.addEventListener("click", this.handleClickOutside);
     }
 
     disconnectedCallback(): void {
@@ -207,6 +210,18 @@ class CeSelect extends HTMLElement {
         this.$listHolder.removeEventListener("scroll", this.handleScroll);
         this.$searchBar.removeEventListener("input", this.handleSearch);
         this.$searchBar.removeEventListener("keydown", this.handleKeydown);
+
+        document.removeEventListener("click", this.handleClickOutside);
+    }
+
+    private handleClickOutside(event: Event) {
+        const isInsideSelect = Array.from(event.composedPath()).some(
+            (element) => element instanceof HTMLElement && this.contains(element)
+        );
+
+        if (!isInsideSelect) {
+            this.close();
+        }
     }
 
     private handleSelectClick(): void {
@@ -215,6 +230,13 @@ class CeSelect extends HTMLElement {
         } else {
             this.show();
         }
+    }
+
+    private close(): void {
+        this.$dropdown.classList.remove("open");
+        this.$searchBar.value = "";
+        this.filteredData = this.data;
+        this.refreshWindow();
     }
 
     private show(): void {
@@ -230,13 +252,6 @@ class CeSelect extends HTMLElement {
         this.$dropdown.style.height = `${this.dropdownHeight}px`;
         this.$dropdown.style.width = `${selectedWidth}px`;
         this.$dropdown.style.transform = `translateY(-${this.dropdownHeight + selectedHeight}px)`;
-    }
-
-    private close(): void {
-        this.$dropdown.classList.remove("open");
-        this.$searchBar.value = "";
-        this.filteredData = this.data;
-        this.refreshWindow();
     }
 
     private handleKeydown(event: Event): void {
