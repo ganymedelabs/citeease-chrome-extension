@@ -1,6 +1,7 @@
 # CiteEase Chrome Extension
 
 ![Code size](https://custom-icon-badges.demolab.com/github/languages/code-size/ganemedelabs/citeease-chrome-extension?logo=file-code&logoColor=white)
+![Webpack](https://custom-icon-badges.demolab.com/badge/Built%20with-Webpack-8DD6F9.svg?logo=webpack&logoColor=white)
 ![JavaScript](https://custom-icon-badges.demolab.com/badge/JavaScript-Vanilla-F7DF1E.svg?logo=javascript&logoColor=white)
 ![License](https://custom-icon-badges.demolab.com/github/license/ganemedelabs/citeease-chrome-extension?logo=law)
 
