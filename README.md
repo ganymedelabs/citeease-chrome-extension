@@ -25,14 +25,18 @@ CiteEase is a powerful, lightweight Chrome extension that simplifies the citatio
 
 ## 🔧 Installation
 
-1. Clone the repository or download the zip file:
-    ```bash
-    git clone https://github.com/ganemedelabs/citeease-chrome-extension.git
-    ```
-2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable **Developer Mode** using the toggle in the top right corner.
-4. Click **Load Unpacked** and select the folder containing the extension files.
-5. CiteEase is now ready to use!
+1. Clone the repository or download the zip file:  
+   ```bash
+   git clone https://github.com/ganemedelabs/citeease-chrome-extension.git
+   ```
+2. Navigate to the project directory and build the project by running:  
+   ```bash
+   npm run build
+   ```
+3. Open Chrome and go to `chrome://extensions/`.  
+4. Enable **Developer Mode** using the toggle in the top-right corner.  
+5. Click **Load Unpacked** and select the `dist` folder.  
+6. CiteEase is now ready to use!  
 
 ## 🌐 Data Sources
 
